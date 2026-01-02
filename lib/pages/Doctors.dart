@@ -1,3 +1,4 @@
+// pages/Doctors.dart
 import 'package:flutter/material.dart';
 import 'ProfileM.dart';
 import 'NotificationPage.dart';
@@ -65,15 +66,15 @@ class _DoctorsPageState extends State<DoctorsPage> {
           children: [
             // Header with back button and notification
             _buildHeader(),
-            
+
             // Welcome message
             _buildWelcomeSection(),
-            
+
             // Search bar
             _buildSearchBar(),
-            
+
             const SizedBox(height: 20),
-            
+
             // Doctors grid
             Expanded(
               child: _buildDoctorsGrid(),
@@ -133,7 +134,8 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.notifications_outlined, color: Colors.white),
+              child:
+                  const Icon(Icons.notifications_outlined, color: Colors.white),
             ),
           ),
         ],
@@ -283,7 +285,8 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
-                      doctors[index]['isFavorite'] = !doctors[index]['isFavorite'];
+                      doctors[index]['isFavorite'] =
+                          !doctors[index]['isFavorite'];
                     });
                   },
                   child: Container(
@@ -299,7 +302,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
                       ],
                     ),
                     child: Icon(
-                      doctor['isFavorite'] ? Icons.favorite : Icons.favorite_border,
+                      doctor['isFavorite']
+                          ? Icons.favorite
+                          : Icons.favorite_border,
                       color: doctor['isFavorite'] ? Colors.red : Colors.grey,
                       size: 18,
                     ),
@@ -308,7 +313,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               ),
             ],
           ),
-          
+
           // Doctor info
           Padding(
             padding: const EdgeInsets.all(12),

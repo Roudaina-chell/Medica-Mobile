@@ -1,7 +1,13 @@
+// main.dart
 import 'package:flutter/material.dart';
-import 'pages/SplashPage.dart';  
+import 'pages/SplashPage.dart';
+import 'pages/init_accounts.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await InitAccounts.initialize();
+
   runApp(const MyApp());
 }
 
@@ -15,7 +21,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         fontFamily: 'Georgia',
       ),
-      home: const SplashPage(),  
+      home: const SplashPage(),
     );
   }
 }
