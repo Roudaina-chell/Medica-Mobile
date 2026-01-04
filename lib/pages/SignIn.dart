@@ -3,11 +3,7 @@ import 'package:flutter/material.dart';
 import 'Profile.dart';
 import 'SignUp.dart';
 import 'database_helper.dart';
-
-// Imports des pages d'accueil selon les rôles
-// import 'home_system.dart'; // Pour le rôle system (Non utilisé)
-// import 'home_administ.dart'; // Pour le rôle nurse_admin (À corriger)
-// import 'home_doctor.dart'; // Pour le rôle medecin (Non utilisé)
+import 'home_admin.dart'; // Import de la page admin
 
 class SignIn extends StatefulWidget {
   const SignIn({Key? key}) : super(key: key);
@@ -31,17 +27,14 @@ class _SignInState extends State<SignIn> {
     Widget destination;
 
     switch (role) {
-      case 'nurse_admin':
-        // En attendant la correction de HomeAdminist, on redirige vers Profile
-        destination = Profile(
-          username: userData['fullName']?.toString() ?? 'Utilisateur',
-          email: userData['email']?.toString() ?? '',
-          role: role,
-        );
+      case 'admin':
+        // Admin principal - Va vers home_admin.dart
+        destination = HomeAdmin(userData: userData);
         break;
 
       case 'patient':
       default:
+        // Patient - Va vers Profile.dart
         destination = Profile(
           username: userData['fullName']?.toString() ?? 'Utilisateur',
           email: userData['email']?.toString() ?? '',

@@ -16,7 +16,6 @@ class _SignUpState extends State<SignUp> {
   bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String _selectedRole = 'patient'; // Rôle par défaut
 
   final TextEditingController _carteIdController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
@@ -24,26 +23,9 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   final DatabaseHelper _dbHelper = DatabaseHelper();
   bool _isLoading = false;
-
-  // Liste des rôles disponibles (SEULEMENT patient et nurse_admin)
-  final List<Map<String, dynamic>> _roles = [
-    {
-      'value': 'patient',
-      'label': 'Patient',
-      'icon': Icons.person,
-      'color': const Color(0xFF2DB4F6)
-    },
-    {
-      'value': 'nurse_admin',
-      'label': 'Infirmière Admin',
-      'icon': Icons.medical_services,
-      'color': Colors.green
-    },
-  ];
 
   @override
   void dispose() {
@@ -52,22 +34,7 @@ class _SignUpState extends State<SignUp> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _phoneController.dispose();
     super.dispose();
-  }
-
-  // Fonction pour rediriger selon le rôle après inscription
-  void _navigateToHome(String role, Map<String, dynamic> userData) {
-    Widget destination = Profile(
-      username: userData['fullName']?.toString() ?? 'Utilisateur',
-      email: userData['email']?.toString() ?? '',
-      role: role,
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => destination),
-    );
   }
 
   Future<void> _signUp() async {
@@ -142,14 +109,14 @@ class _SignUpState extends State<SignUp> {
         return;
       }
 
-      // Créer l'utilisateur
+      // Créer l'utilisateur (toujours en tant que patient)
       await _dbHelper.addUser(_emailController.text, {
         'carte_id': carteId,
         'fullName': _fullNameController.text,
         'email': _emailController.text,
         'password': _passwordController.text,
-        'role': _selectedRole,
-        'phone': _phoneController.text,
+        'role': 'patient', // Toujours patient lors de l'inscription
+        'phone': '', // Pas de téléphone
         'dateOfBirth': '',
         'address': '',
         'rememberMe': _rememberMe,
@@ -160,17 +127,17 @@ class _SignUpState extends State<SignUp> {
 
       if (!mounted) return;
 
-      // Préparer les données utilisateur pour la redirection
-      Map<String, dynamic> userData = {
-        'carte_id': carteId,
-        'fullName': _fullNameController.text,
-        'email': _emailController.text,
-        'role': _selectedRole,
-        'phone': _phoneController.text,
-      };
-
-      // Redirection selon le rôle
-      _navigateToHome(_selectedRole, userData);
+      // Redirection vers Profile (patient)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Profile(
+            username: _fullNameController.text,
+            email: _emailController.text,
+            role: 'patient',
+          ),
+        ),
+      );
     } catch (e) {
       _showSnackBar('Erreur: ${e.toString()}');
     } finally {
@@ -188,98 +155,6 @@ class _SignUpState extends State<SignUp> {
         content: Text(message),
         backgroundColor: isSuccess ? Colors.green : const Color(0xFF2DB4F6),
         duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  // Widget pour sélectionner le rôle
-  Widget _buildRoleSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Sélectionnez votre rôle *',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Row(
-              children: _roles.map((role) {
-                bool isSelected = _selectedRole == role['value'];
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedRole = role['value'];
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? role['color'].withOpacity(0.1)
-                              : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: isSelected
-                                ? role['color']
-                                : Colors.grey.shade300,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              role['icon'],
-                              color: isSelected
-                                  ? role['color']
-                                  : Colors.grey.shade600,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              role['label'],
-                              style: TextStyle(
-                                color: isSelected
-                                    ? role['color']
-                                    : Colors.grey.shade700,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -381,17 +256,6 @@ class _SignUpState extends State<SignUp> {
                   hintText: 'Email',
                   keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 20),
-                // Phone Field (optional)
-                _buildTextField(
-                  controller: _phoneController,
-                  icon: Icons.phone_outlined,
-                  hintText: 'Téléphone (optionnel)',
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 20),
-                // Role Selector
-                _buildRoleSelector(),
                 const SizedBox(height: 20),
                 // Password Field
                 _buildTextField(

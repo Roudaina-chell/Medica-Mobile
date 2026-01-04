@@ -9,18 +9,47 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  # Base de données Hive
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+  
+  # Sélection et manipulation d'images
   image_picker: ^1.2.1
+  
+  # Format de date et internationalisation
   intl: ^0.20.2
+  
+  # Accès aux répertoires système
   path_provider: ^2.1.0
+  
+  # Icons
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  hive_generator: ^1.1.3
-  build_runner: ^2.4.6
-  flutter_lints: ^2.0.0
+  
+  # Générateur pour Hive (optionnel mais utile)
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.9
+  
+  # Linter Flutter
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+  
+  # Si tu veux ajouter des assets (images, fonts, etc.)
+  # Décommente les lignes ci-dessous et ajoute tes fichiers
+  
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+  
+  # fonts:
+  #   - family: Roboto
+  #     fonts:
+  #       - asset: fonts/Roboto-Regular.ttf
+  #       - asset: fonts/Roboto-Bold.ttf
+  #         weight: 700
