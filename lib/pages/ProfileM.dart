@@ -1,10 +1,10 @@
-// pages/ProfileM.dart
+// pages/ProfileM.dart - Standalone version (no backend required)
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:hive/hive.dart';
-import 'database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class EditProfilePage extends StatefulWidget {
   final String userEmail;
@@ -31,7 +31,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _profileImagePath;
   final ImagePicker _picker = ImagePicker();
 
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -60,15 +59,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  // Récupérer les données existantes de la base de données
+  // Load user data from SharedPreferences
   Future<void> _loadUserData() async {
     try {
-      final box = await _dbHelper.usersBox;
-      final userData = box.get(widget.userEmail);
+      final prefs = await SharedPreferences.getInstance();
+      final userDataJson = prefs.getString('user_${widget.userEmail}');
 
-      if (userData != null) {
+      if (userDataJson != null) {
+        final userData = json.decode(userDataJson);
         setState(() {
-          // Remplir les champs avec les données existantes
           _firstNameController.text = userData['firstName'] ?? '';
           _lastNameController.text = userData['lastName'] ?? '';
           _dateController.text = userData['birthDate'] ?? '';
@@ -76,7 +75,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _selectedGender = userData['gender'] ?? 'Féminin';
           _profileImagePath = userData['profileImage'];
 
-          // Charger l'image de profil si elle existe
+          // Load profile image if exists
           if (_profileImagePath != null &&
               _profileImagePath!.isNotEmpty &&
               File(_profileImagePath!).existsSync()) {
@@ -85,7 +84,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         });
       }
     } catch (e) {
-      debugPrint('Erreur chargement données: $e');
+      debugPrint('Error loading data: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -108,8 +107,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading:
-                      const Icon(Icons.photo_library, color: Color(0xFF00B4D8)),
+                  leading: const Icon(Icons.photo_library, color: Color(0xFF00B4D8)),
                   title: const Text('Galerie'),
                   onTap: () async {
                     Navigator.pop(context);
@@ -127,8 +125,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading:
-                      const Icon(Icons.photo_camera, color: Color(0xFF00B4D8)),
+                  leading: const Icon(Icons.photo_camera, color: Color(0xFF00B4D8)),
                   title: const Text('Caméra'),
                   onTap: () async {
                     Navigator.pop(context);
@@ -166,7 +163,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           );
         }
       } catch (e) {
-        debugPrint('Erreur parsing date: $e');
+        debugPrint('Error parsing date: $e');
       }
     }
 
@@ -197,6 +194,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  // Save profile to SharedPreferences
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,9 +211,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now().toIso8601String();
-      final box = await _dbHelper.usersBox;
-      final existingUser = box.get(widget.userEmail);
 
       final userData = {
         'email': widget.userEmail,
@@ -228,22 +225,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'updatedAt': now,
       };
 
-      if (existingUser != null) {
-        userData['password'] = existingUser['password'];
-        userData['role'] = existingUser['role'] ?? 'patient';
-        userData['createdAt'] = existingUser['createdAt'] ?? now;
-      } else {
-        userData['role'] = 'patient';
-        userData['createdAt'] = now;
-        userData['password'] = '';
-      }
-
-      await box.put(widget.userEmail, userData);
+      // Save to SharedPreferences
+      await prefs.setString('user_${widget.userEmail}', json.encode(userData));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Profil mis à jour avec succès'),
+            content: Text('✅ Profil mis à jour avec succès'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -263,11 +251,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
-      debugPrint('Erreur sauvegarde: $e');
+      debugPrint('Error saving: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
+            content: Text('❌ Erreur: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -289,12 +277,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
-                Color.fromARGB(255, 90, 196, 245),
-                Color.fromARGB(255, 221, 230, 235),
-                Color.fromARGB(255, 214, 225, 230),
+                Color(0xFF7DD3FC),
+                Color(0xFFBAE6FD),
+                Color(0xFFE0F2FE),
+                Colors.white,
               ],
             ),
           ),
@@ -311,25 +300,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color.fromARGB(255, 90, 196, 245),
-              Color.fromARGB(255, 221, 230, 235),
-              Color.fromARGB(255, 214, 225, 230),
+              Color(0xFF7DD3FC),
+              Color(0xFFBAE6FD),
+              Color(0xFFE0F2FE),
+              Colors.white,
             ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
+              // Header with back and save buttons
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 28),
+                      icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                     ),
                     if (_isSaving)
@@ -337,7 +328,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                          color: Color(0xFF00B4D8),
+                          color: Colors.white,
                           strokeWidth: 2,
                         ),
                       )
@@ -345,7 +336,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       IconButton(
                         icon: const Icon(
                           Icons.check,
-                          color: Color(0xFF00B4D8),
+                          color: Colors.white,
                           size: 28,
                         ),
                         onPressed: _saveProfile,
@@ -353,6 +344,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ],
                 ),
               ),
+
+              // Scrollable content
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -362,6 +355,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       child: Column(
                         children: [
                           const SizedBox(height: 20),
+
+                          // Profile Image with camera button
                           Stack(
                             children: [
                               Container(
@@ -369,8 +364,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 height: 150,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 4),
+                                  border: Border.all(color: Colors.white, width: 4),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.1),
@@ -384,8 +378,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       ? Image.file(
                                           _profileImage!,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
+                                          errorBuilder: (context, error, stackTrace) {
                                             return _buildDefaultProfileImage();
                                           },
                                         )
@@ -403,8 +396,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     decoration: BoxDecoration(
                                       color: Colors.black87,
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 3),
+                                      border: Border.all(color: Colors.white, width: 3),
                                     ),
                                     child: const Icon(
                                       Icons.camera_alt,
@@ -416,9 +408,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               ),
                             ],
                           ),
+
                           const SizedBox(height: 40),
 
-                          // Email dans un carré blanc
+                          // Email field (read-only)
                           _buildTextField(
                             label: 'Email',
                             controller: _emailController,
@@ -428,7 +421,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                           const SizedBox(height: 20),
 
-                          // First name dans un carré blanc
+                          // First name
                           _buildTextField(
                             label: 'First name',
                             controller: _firstNameController,
@@ -442,6 +435,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                           const SizedBox(height: 20),
 
+                          // Last name
                           _buildTextField(
                             label: 'Last name',
                             controller: _lastNameController,
@@ -455,6 +449,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                           const SizedBox(height: 20),
 
+                          // Date of birth
                           _buildTextField(
                             label: 'Date of birth',
                             controller: _dateController,
@@ -470,6 +465,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                           const SizedBox(height: 20),
 
+                          // Contact info
                           _buildTextField(
                             label: 'Contact info',
                             controller: _contactController,
@@ -478,9 +474,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Le contact est requis';
                               }
-                              if (!RegExp(r'^[0-9]{10}$')
-                                  .hasMatch(value.trim())) {
-                                return 'Numéro invalide (10 chiffres)';
+                              if (!RegExp(r'^[0-9+\s-()]{10,15}$').hasMatch(value.trim())) {
+                                return 'Numéro invalide';
                               }
                               return null;
                             },
@@ -488,10 +483,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                           const SizedBox(height: 20),
 
+                          // Gender dropdown
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(15),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
@@ -504,12 +500,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: 16, top: 8),
+                                  padding: const EdgeInsets.only(left: 16, top: 12),
                                   child: Text(
                                     'Gender',
                                     style: TextStyle(
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       color: Colors.grey[600],
                                       fontWeight: FontWeight.w400,
                                     ),
@@ -579,7 +574,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -595,22 +590,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
         onTap: onTap,
         style: TextStyle(
           fontSize: 16,
-          color: (readOnly && isEmail) ? Colors.grey : Colors.black,
+          color: (readOnly && isEmail) ? Colors.grey[600] : Colors.black,
         ),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             color: Colors.grey[600],
             fontWeight: FontWeight.w400,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 16,
+            vertical: 18,
           ),
           floatingLabelBehavior: FloatingLabelBehavior.always,
         ),
@@ -621,7 +616,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Widget _buildDefaultProfileImage() {
     return Container(
-      color: Colors.grey[300],
+      color: Colors.grey[200],
       child: const Center(
         child: Icon(Icons.person, size: 80, color: Colors.grey),
       ),

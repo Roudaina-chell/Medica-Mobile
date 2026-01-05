@@ -25,6 +25,7 @@ dependencies:
   
   # Icons
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
@@ -40,16 +41,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  # Si tu veux ajouter des assets (images, fonts, etc.)
-  # Décommente les lignes ci-dessous et ajoute tes fichiers
-  
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
-  
-  # fonts:
-  #   - family: Roboto
-  #     fonts:
-  #       - asset: fonts/Roboto-Regular.ttf
-  #       - asset: fonts/Roboto-Bold.ttf
-  #         weight: 700
+  # Assets (images, icons, etc.)
+  assets:
+    - assets/images/medica_logo.png
+    - assets/images/doctr.png
+    - assets/images/tbib.png
+    - assets/images/doctor.png
+    - assets/images/logoM.png

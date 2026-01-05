@@ -183,18 +183,11 @@ class _SignUpState extends State<SignUp> {
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      height: 150,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2DB4F6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.person_add,
-                        size: 80,
-                        color: Colors.white,
-                      ),
+                    child: Image.asset(
+                      'assets/images/logoM.png',
+                      height: 200,
+                      width: 200,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
