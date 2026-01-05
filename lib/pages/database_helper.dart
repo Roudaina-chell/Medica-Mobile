@@ -50,7 +50,7 @@ class DatabaseHelper {
     await box.put(email, userData);
   }
 
-  // Insérer un utilisateur (patient ou médecin) - Version simplifiée
+  // Insérer un utilisateur (patient ou médecin) - Version améliorée
   Future<void> insertUser(Map<String, dynamic> user) async {
     final box = await usersBox;
     final carteId = user['carte_id'];
@@ -66,7 +66,24 @@ class DatabaseHelper {
     // Ajouter timestamp de création
     user['createdAt'] = DateTime.now().toIso8601String();
 
+    // ✅ NOUVEAUX CHAMPS AJOUTÉS:
+    // - firstName (prénom)
+    // - lastName (nom)
+    // - gender (genre: Homme/Femme)
+    // - specialite (spécialité pour les docteurs)
+    // - deploymentFile (nom du fichier de déploiement)
+    // - deploymentFileData (données du fichier en base64/string)
+
+    // Si fullName n'existe pas mais firstName et lastName existent, le créer
+    if (user['fullName'] == null &&
+        user['firstName'] != null &&
+        user['lastName'] != null) {
+      user['fullName'] = '${user['firstName']} ${user['lastName']}';
+    }
+
     await box.put(email, user);
+
+    debugPrint('✅ Utilisateur ajouté: ${user['fullName']} (${user['role']})');
   }
 
   // ==================== RÉCUPÉRATION ====================
@@ -150,9 +167,28 @@ class DatabaseHelper {
     return await getUsersByRole('patient');
   }
 
-  // Récupérer tous les médecins
+  // Récupérer tous les médecins (doctor OU medecin)
   Future<List<Map<String, dynamic>>> getAllDoctors() async {
-    return await getUsersByRole('medecin');
+    final box = await usersBox;
+    final allUsers = box.values;
+
+    List<Map<String, dynamic>> doctors = [];
+    for (var user in allUsers) {
+      if (user['role'] == 'doctor' || user['role'] == 'medecin') {
+        doctors.add(Map<String, dynamic>.from(user));
+      }
+    }
+    return doctors;
+  }
+
+  // ✅ NOUVELLE FONCTION: Récupérer un docteur avec ses infos complètes
+  Future<Map<String, dynamic>?> getDoctorByCarteId(int carteId) async {
+    final user = await getUserByCarteId(carteId);
+    if (user != null &&
+        (user['role'] == 'doctor' || user['role'] == 'medecin')) {
+      return user;
+    }
+    return null;
   }
 
   // ==================== MISE À JOUR ====================
@@ -175,6 +211,15 @@ class DatabaseHelper {
         final userData = Map<String, dynamic>.from(entry.value);
         userData.addAll(updatedData);
         userData['updatedAt'] = DateTime.now().toIso8601String();
+
+        // Si firstName ou lastName changent, mettre à jour fullName
+        if (updatedData.containsKey('firstName') ||
+            updatedData.containsKey('lastName')) {
+          final firstName = userData['firstName'] ?? '';
+          final lastName = userData['lastName'] ?? '';
+          userData['fullName'] = '$firstName $lastName'.trim();
+        }
+
         await box.put(entry.key, userData);
         return;
       }
@@ -197,6 +242,7 @@ class DatabaseHelper {
     for (var entry in allUsers.entries) {
       if (entry.value['carte_id'] == carteId) {
         await box.delete(entry.key);
+        debugPrint('🗑️ Utilisateur supprimé: ${entry.value['fullName']}');
         return;
       }
     }
@@ -213,14 +259,18 @@ class DatabaseHelper {
       final nom = patient['nom']?.toString().toLowerCase() ?? '';
       final prenom = patient['prenom']?.toString().toLowerCase() ?? '';
       final fullName = patient['fullName']?.toString().toLowerCase() ?? '';
+      final firstName = patient['firstName']?.toString().toLowerCase() ?? '';
+      final lastName = patient['lastName']?.toString().toLowerCase() ?? '';
 
       return nom.contains(searchQuery) ||
           prenom.contains(searchQuery) ||
-          fullName.contains(searchQuery);
+          fullName.contains(searchQuery) ||
+          firstName.contains(searchQuery) ||
+          lastName.contains(searchQuery);
     }).toList();
   }
 
-  // Rechercher des médecins par nom
+  // Rechercher des médecins par nom ou spécialité
   Future<List<Map<String, dynamic>>> searchDoctors(String query) async {
     final allDoctors = await getAllDoctors();
     final searchQuery = query.toLowerCase();
@@ -229,12 +279,30 @@ class DatabaseHelper {
       final nom = doctor['nom']?.toString().toLowerCase() ?? '';
       final prenom = doctor['prenom']?.toString().toLowerCase() ?? '';
       final fullName = doctor['fullName']?.toString().toLowerCase() ?? '';
+      final firstName = doctor['firstName']?.toString().toLowerCase() ?? '';
+      final lastName = doctor['lastName']?.toString().toLowerCase() ?? '';
       final speciality = doctor['speciality']?.toString().toLowerCase() ?? '';
+      final specialite = doctor['specialite']?.toString().toLowerCase() ?? '';
 
       return nom.contains(searchQuery) ||
           prenom.contains(searchQuery) ||
           fullName.contains(searchQuery) ||
-          speciality.contains(searchQuery);
+          firstName.contains(searchQuery) ||
+          lastName.contains(searchQuery) ||
+          speciality.contains(searchQuery) ||
+          specialite.contains(searchQuery);
+    }).toList();
+  }
+
+  // ✅ NOUVELLE FONCTION: Rechercher par spécialité uniquement
+  Future<List<Map<String, dynamic>>> getDoctorsBySpecialty(
+      String specialty) async {
+    final allDoctors = await getAllDoctors();
+    return allDoctors.where((doctor) {
+      final doctorSpecialty = doctor['specialite']?.toString() ??
+          doctor['speciality']?.toString() ??
+          '';
+      return doctorSpecialty.toLowerCase() == specialty.toLowerCase();
     }).toList();
   }
 
@@ -264,6 +332,46 @@ class DatabaseHelper {
     return doctors.length;
   }
 
+  // ✅ NOUVELLE FONCTION: Statistiques par genre
+  Future<Map<String, int>> getGenderStatistics(String role) async {
+    final users = await getUsersByRole(role);
+    int male = 0;
+    int female = 0;
+    int other = 0;
+
+    for (var user in users) {
+      final gender = user['gender']?.toString().toLowerCase() ?? '';
+      if (gender == 'homme' || gender == 'male') {
+        male++;
+      } else if (gender == 'femme' || gender == 'female') {
+        female++;
+      } else {
+        other++;
+      }
+    }
+
+    return {
+      'male': male,
+      'female': female,
+      'other': other,
+    };
+  }
+
+  // ✅ NOUVELLE FONCTION: Statistiques par spécialité
+  Future<Map<String, int>> getSpecialtyStatistics() async {
+    final doctors = await getAllDoctors();
+    Map<String, int> specialtyCount = {};
+
+    for (var doctor in doctors) {
+      final specialty = doctor['specialite']?.toString() ??
+          doctor['speciality']?.toString() ??
+          'Non spécifié';
+      specialtyCount[specialty] = (specialtyCount[specialty] ?? 0) + 1;
+    }
+
+    return specialtyCount;
+  }
+
   // ==================== ADMIN ====================
 
   /// Initialiser le compte administrateur unique
@@ -287,10 +395,13 @@ class DatabaseHelper {
     await box.put(adminEmail, {
       'carte_id': int.parse(adminCarteId),
       'fullName': adminName,
+      'firstName': 'Administrateur',
+      'lastName': 'Principal',
       'email': adminEmail,
       'password': adminPassword,
-      'role': 'admin', // Rôle unique pour l'admin principal
+      'role': 'admin',
       'phone': '',
+      'gender': 'Homme',
       'dateOfBirth': '',
       'address': '',
       'rememberMe': true,
@@ -342,10 +453,17 @@ class DatabaseHelper {
     for (var user in users) {
       debugPrint('\n---');
       debugPrint(
-          'Nom: ${user['fullName'] ?? user['nom']} ${user['prenom'] ?? ''}');
+          'Nom: ${user['fullName'] ?? '${user['firstName']} ${user['lastName']}'}');
       debugPrint('Email: ${user['email']}');
       debugPrint('Carte ID: ${user['carte_id']}');
       debugPrint('Rôle: ${user['role']}');
+      if (user['role'] == 'doctor' || user['role'] == 'medecin') {
+        debugPrint('Spécialité: ${user['specialite'] ?? 'Non spécifié'}');
+        debugPrint('Genre: ${user['gender'] ?? 'Non spécifié'}');
+        if (user['deploymentFile'] != null) {
+          debugPrint('Fichier: ${user['deploymentFile']}');
+        }
+      }
     }
     debugPrint('\n=====================================\n');
   }

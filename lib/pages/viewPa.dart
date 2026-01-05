@@ -2,16 +2,16 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 
-class ViewPa extends StatefulWidget {
+class ViewProfileAdmin extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
-  const ViewPa({Key? key, this.userData}) : super(key: key);
+  const ViewProfileAdmin({Key? key, this.userData}) : super(key: key);
 
   @override
-  State<ViewPa> createState() => _ViewPaState();
+  State<ViewProfileAdmin> createState() => _ViewProfileAdminState();
 }
 
-class _ViewPaState extends State<ViewPa> {
+class _ViewProfileAdminState extends State<ViewProfileAdmin> {
   Map<String, dynamic>? adminData;
   bool isLoading = true;
   int totalPatients = 0;
@@ -71,25 +71,40 @@ class _ViewPaState extends State<ViewPa> {
     }
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromARGB(255, 90, 196, 245),
-              Color.fromARGB(255, 221, 230, 235),
-              Color.fromARGB(255, 214, 225, 230),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
+      appBar: AppBar(
+        title: const Text("Profil Administrateur"),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Nom : ${getAdminName()}",
+                style: const TextStyle(fontSize: 20)),
+            Text("Email : ${getAdminEmail()}"),
+            Text("Carte ID : ${getAdminCarteId()}"),
+            Text("Téléphone : ${getAdminPhone()}"),
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // ---- tout ton design reste inchangé ----
-                // (je n’ai rien supprimé ni modifié dans le style)
+                _buildStatCard(
+                  icon: Icons.people,
+                  label: "Patients",
+                  count: totalPatients.toString(),
+                  color: Colors.green,
+                ),
+                _buildStatCard(
+                  icon: Icons.medical_services,
+                  label: "Doctors",
+                  count: totalDoctors.toString(),
+                  color: Colors.blue,
+                ),
               ],
-            ),
-          ),
+            )
+          ],
         ),
       ),
     );
@@ -102,33 +117,21 @@ class _ViewPaState extends State<ViewPa> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 30),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(count,
               style: TextStyle(
-                  fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+                  fontSize: 24, fontWeight: FontWeight.bold, color: color)),
           Text(label),
         ],
       ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.blue),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text("$label : $value"),
-        ),
-      ],
     );
   }
 }

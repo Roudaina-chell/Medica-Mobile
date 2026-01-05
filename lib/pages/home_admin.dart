@@ -23,12 +23,11 @@ class _HomeAdminState extends State<HomeAdmin> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color.fromARGB(255, 90, 196, 245),
-              Color.fromARGB(255, 221, 230, 235),
-              Color.fromARGB(255, 214, 225, 230),
+              Color(0xFF89CFF0),
+              Color(0xFFB0E0E6),
             ],
           ),
         ),
@@ -40,25 +39,34 @@ class _HomeAdminState extends State<HomeAdmin> {
                 padding: const EdgeInsets.all(20.0),
                 child: Row(
                   children: [
-                    // Photo de profil
-                    Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Color(0xFF2DB4F6),
+                    // Photo de profil - Cliquable pour aller vers profilAd
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/profilAd',
+                          arguments: widget.userData,
+                        );
+                      },
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Color(0xFF2DB4F6),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -66,16 +74,12 @@ class _HomeAdminState extends State<HomeAdmin> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Hi 👨‍⚕️',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
+                        const Text(
+                          'Hi 👨‍⚕️',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
                         ),
                         Text(
                           adminName,
@@ -145,143 +149,50 @@ class _HomeAdminState extends State<HomeAdmin> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
-                          Text(
-                            '🏥 ',
-                            style: TextStyle(fontSize: 20),
-                          ),
-                          Text(
-                            'patients informations',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'patients informations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Boutons patients
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          _buildActionButton(
-                            icon: Icons.person_add_outlined,
-                            label: 'add',
-                            emoji: '➕',
-                            onTap: () {
-                              Navigator.pushNamed(context, '/addP');
-                            },
-                          ),
-                          const SizedBox(width: 20),
-                          _buildActionButton(
-                            icon: Icons.edit_outlined,
-                            label: 'edit',
-                            emoji: '✏️',
-                            onTap: () => _showComingSoon('Modifier un patient'),
-                          ),
-                          const SizedBox(width: 20),
-                          _buildActionButton(
-                            icon: Icons.delete_outline,
-                            label: 'delete',
-                            emoji: '🗑️',
-                            onTap: () =>
-                                _showComingSoon('Supprimer un patient'),
-                          ),
-                        ],
+                      // Bouton patients - Seulement ADD
+                      _buildActionButton(
+                        icon: Icons.person_add_outlined,
+                        label: 'add',
+                        emoji: '➕',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/addP');
+                        },
                       ),
 
                       const SizedBox(height: 30),
 
                       // Section Doctors
-                      Row(
-                        children: const [
-                          Text(
-                            '👨‍⚕️ ',
-                            style: TextStyle(fontSize: 20),
-                          ),
-                          Text(
-                            'Doctors informations',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'Doctors informations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Boutons doctors
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          _buildActionButton(
-                            icon: Icons.person_add_outlined,
-                            label: 'add',
-                            emoji: '➕',
-                            onTap: () => _showComingSoon('Ajouter un médecin'),
-                          ),
-                          const SizedBox(width: 20),
-                          _buildActionButton(
-                            icon: Icons.edit_outlined,
-                            label: 'edit',
-                            emoji: '✏️',
-                            onTap: () => _showComingSoon('Modifier un médecin'),
-                          ),
-                        ],
+                      // Bouton doctor - Seulement ADD
+                      _buildActionButton(
+                        icon: Icons.person_add_outlined,
+                        label: 'add',
+                        emoji: '➕',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/addD');
+                        },
                       ),
 
                       const Spacer(),
-
-                      // Informations admin en bas
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        margin: const EdgeInsets.only(bottom: 90),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Text(
-                                  '📋 ',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                Text(
-                                  'Informations administrateur',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _buildInfoRow(
-                                Icons.email_outlined, adminEmail, '📧'),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(
-                                Icons.badge_outlined, 'ID: $carteId', '🆔'),
-                            const SizedBox(height: 8),
-                            _buildInfoRow(Icons.admin_panel_settings_outlined,
-                                'Administrateur', '👑'),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -324,6 +235,7 @@ class _HomeAdminState extends State<HomeAdmin> {
     required String label,
     required String emoji,
     required VoidCallback onTap,
+    bool isSelected = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -333,14 +245,23 @@ class _HomeAdminState extends State<HomeAdmin> {
             width: 70,
             height: 70,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  Color(0xFFF5F5F5),
-                ],
-              ),
+              gradient: isSelected
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF2DB4F6),
+                        Color(0xFF1E88E5),
+                      ],
+                    )
+                  : const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white,
+                        Color(0xFFF5F5F5),
+                      ],
+                    ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -356,7 +277,7 @@ class _HomeAdminState extends State<HomeAdmin> {
                 Icon(
                   icon,
                   size: 32,
-                  color: const Color(0xFF2DB4F6),
+                  color: isSelected ? Colors.white : const Color(0xFF2DB4F6),
                 ),
                 Positioned(
                   top: 8,
@@ -390,13 +311,36 @@ class _HomeAdminState extends State<HomeAdmin> {
         setState(() {
           _selectedIndex = index;
         });
-        // Bouton visibility (index 1) ET bouton profil (index 3) vont vers profilAd
-        if (index == 1 || index == 3) {
-          Navigator.pushNamed(
-            context,
-            '/profilAd',
-            arguments: widget.userData,
-          );
+
+        // Navigation selon l'index
+        switch (index) {
+          case 0:
+            // Bouton Home - On reste sur home_admin (pas de navigation)
+            break;
+          case 1:
+            // Bouton Visibility -> Dashboard
+            Navigator.pushNamed(
+              context,
+              '/dashbordAd',
+              arguments: widget.userData,
+            );
+            break;
+          case 2:
+            // Bouton Notifications
+            Navigator.pushNamed(
+              context,
+              '/notificationAd',
+              arguments: widget.userData,
+            );
+            break;
+          case 3:
+            // Bouton Profile
+            Navigator.pushNamed(
+              context,
+              '/profilAd',
+              arguments: widget.userData,
+            );
+            break;
         }
       },
       child: Container(
@@ -420,50 +364,6 @@ class _HomeAdminState extends State<HomeAdmin> {
           color: isSelected ? Colors.white : Colors.black54,
           size: 28,
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text, String emoji) {
-    return Row(
-      children: [
-        Text(
-          emoji,
-          style: const TextStyle(fontSize: 16),
-        ),
-        const SizedBox(width: 8),
-        Icon(icon, size: 16, color: const Color(0xFF2DB4F6)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Text('🚀 ', style: TextStyle(fontSize: 18)),
-            Expanded(
-              child: Text('$feature - Fonctionnalité à venir'),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF2DB4F6),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        margin: const EdgeInsets.all(20),
       ),
     );
   }

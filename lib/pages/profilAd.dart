@@ -1,6 +1,7 @@
 // pages/profilAd.dart
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'home_admin.dart'; // IMPORTANT: Ajoutez cet import
 
 class ProfilAdmin extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -135,12 +136,11 @@ class _ProfilAdminState extends State<ProfilAdmin> {
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
-                Color.fromARGB(255, 90, 196, 245),
-                Color.fromARGB(255, 221, 230, 235),
-                Color.fromARGB(255, 214, 225, 230),
+                Color(0xFF89CFF0),
+                Color(0xFFB0E0E6),
               ],
             ),
           ),
@@ -157,12 +157,11 @@ class _ProfilAdminState extends State<ProfilAdmin> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color.fromARGB(255, 90, 196, 245),
-              Color.fromARGB(255, 221, 230, 235),
-              Color.fromARGB(255, 214, 225, 230),
+              Color(0xFF89CFF0),
+              Color(0xFFB0E0E6),
             ],
           ),
         ),
@@ -170,45 +169,18 @@ class _ProfilAdminState extends State<ProfilAdmin> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Color(0xFF2DB4F6),
-                            size: 20,
-                          ),
-                        ),
+                // Header simplifié sans flèche
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Center(
+                    child: Text(
+                      'Menu Admin',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2DB4F6),
                       ),
-                      const Spacer(),
-                      const Text(
-                        'Menu Admin',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                      const SizedBox(width: 42),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -226,7 +198,7 @@ class _ProfilAdminState extends State<ProfilAdmin> {
                         color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withOpacity(0.15),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -280,7 +252,7 @@ class _ProfilAdminState extends State<ProfilAdmin> {
                   style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -288,7 +260,7 @@ class _ProfilAdminState extends State<ProfilAdmin> {
                   getAdminEmail(),
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Colors.white70,
+                    color: Colors.black54,
                   ),
                 ),
 
@@ -300,12 +272,12 @@ class _ProfilAdminState extends State<ProfilAdmin> {
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Colors.orange, Colors.deepOrange],
+                      colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
                     ),
                     borderRadius: BorderRadius.circular(25),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
+                        color: const Color(0xFF2DB4F6).withOpacity(0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -348,7 +320,13 @@ class _ProfilAdminState extends State<ProfilAdmin> {
                         icon: Icons.notifications,
                         title: 'Notifications',
                         emoji: '🔔',
-                        onTap: () => _showComingSoon('Notifications'),
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/notificationAd',
+                            arguments: widget.userData,
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       _buildMenuOption(
@@ -428,12 +406,48 @@ class _ProfilAdminState extends State<ProfilAdmin> {
     bool isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
-        if (index == 0) {
-          Navigator.pop(context);
-        } else {
-          setState(() {
-            _selectedIndex = index;
-          });
+        // Navigation selon l'index
+        switch (index) {
+          case 0:
+            // Bouton Home - Navigation directe avec MaterialPageRoute
+            final dataToPass = widget.userData ?? adminData ?? {};
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeAdmin(
+                  userData: dataToPass,
+                ),
+              ),
+            );
+            break;
+          case 1:
+            // Bouton Dashboard
+            setState(() {
+              _selectedIndex = index;
+            });
+            Navigator.pushNamed(
+              context,
+              '/dashbordAd',
+              arguments: widget.userData ?? adminData,
+            );
+            break;
+          case 2:
+            // Bouton Notifications
+            setState(() {
+              _selectedIndex = index;
+            });
+            Navigator.pushNamed(
+              context,
+              '/notificationAd',
+              arguments: widget.userData ?? adminData,
+            );
+            break;
+          case 3:
+            // Bouton Profile - On reste sur cette page
+            setState(() {
+              _selectedIndex = index;
+            });
+            break;
         }
       },
       child: Container(
