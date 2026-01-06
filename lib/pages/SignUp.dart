@@ -127,14 +127,16 @@ class _SignUpState extends State<SignUp> {
 
       if (!mounted) return;
 
-      // Redirection vers Profile (patient)
+      // Redirection vers Profile (patient) - CORRECTION
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => Profile(
-            username: _fullNameController.text,
-            email: _emailController.text,
-            role: 'patient',
+            userData: {
+              'fullName': _fullNameController.text,
+              'email': _emailController.text,
+              'role': 'patient',
+            },
           ),
         ),
       );

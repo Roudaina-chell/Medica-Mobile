@@ -8,6 +8,8 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   Box? _usersBox;
+  Box? _appointmentsBox;
+  Box? _medicalRecordsBox;
 
   Future<Box> get usersBox async {
     if (_usersBox != null && _usersBox!.isOpen) return _usersBox!;
@@ -15,9 +17,167 @@ class DatabaseHelper {
     return _usersBox!;
   }
 
-  // ==================== VÉRIFICATIONS ====================
+  Future<Box> get appointmentsBox async {
+    if (_appointmentsBox != null && _appointmentsBox!.isOpen)
+      return _appointmentsBox!;
+    _appointmentsBox = await Hive.openBox('appointments');
+    return _appointmentsBox!;
+  }
 
-  // Vérifier si l'ID carte nationale existe déjà (NUMBER)
+  Future<Box> get medicalRecordsBox async {
+    if (_medicalRecordsBox != null && _medicalRecordsBox!.isOpen)
+      return _medicalRecordsBox!;
+    _medicalRecordsBox = await Hive.openBox('medical_records');
+    return _medicalRecordsBox!;
+  }
+
+  // ==================== MÉTHODES POUR DOSSIER MÉDICAL ====================
+
+  // Sauvegarder les données médicales d'un patient
+  Future<void> saveMedicalRecord(
+      int patientCarteId, Map<String, dynamic> medicalData) async {
+    final box = await medicalRecordsBox;
+    final recordId = '$patientCarteId-${DateTime.now().millisecondsSinceEpoch}';
+
+    medicalData['recordId'] = recordId;
+    medicalData['patientCarteId'] = patientCarteId;
+    medicalData['updatedAt'] = DateTime.now().toIso8601String();
+
+    await box.put(recordId, medicalData);
+    debugPrint('✅ Dossier médical sauvegardé pour patient $patientCarteId');
+  }
+
+  // Récupérer le dossier médical d'un patient
+  Future<Map<String, dynamic>> getMedicalRecord(int patientCarteId) async {
+    final box = await medicalRecordsBox;
+    final allRecords = box.values.toList();
+
+    for (var record in allRecords) {
+      if (record['patientCarteId'] == patientCarteId) {
+        return Map<String, dynamic>.from(record);
+      }
+    }
+
+    // Retourner un dossier médical vide si non trouvé
+    return {
+      'patientCarteId': patientCarteId,
+      'bloodType': 'Non spécifié',
+      'height': '0',
+      'weight': '0',
+      'allergies': 'Aucune',
+      'medications': 'Aucun',
+      'chronicDiseases': 'Aucune',
+      'previousSurgeries': 'Aucune',
+      'familyHistory': 'Non spécifié',
+      'smoking': false,
+      'alcohol': false,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+  }
+
+  // Mettre à jour les données médicales d'un patient
+  Future<void> updateMedicalRecord(
+      int patientCarteId, Map<String, dynamic> updatedData) async {
+    final box = await medicalRecordsBox;
+    final allRecords = box.toMap();
+
+    for (var entry in allRecords.entries) {
+      if (entry.value['patientCarteId'] == patientCarteId) {
+        final recordData = Map<String, dynamic>.from(entry.value);
+        recordData.addAll(updatedData);
+        recordData['updatedAt'] = DateTime.now().toIso8601String();
+
+        await box.put(entry.key, recordData);
+        debugPrint('✅ Dossier médical mis à jour pour patient $patientCarteId');
+        return;
+      }
+    }
+
+    // Si aucun dossier n'existe, en créer un nouveau
+    await saveMedicalRecord(patientCarteId, updatedData);
+  }
+
+  // ==================== MÉTHODES AMÉLIORÉES POUR UTILISATEURS ====================
+
+  // Ajouter un utilisateur avec données médicales
+  Future<void> insertUserWithMedicalData(Map<String, dynamic> user) async {
+    final box = await usersBox;
+    final carteId = user['carte_id'];
+
+    if (await carteIdExists(carteId)) {
+      throw Exception('Ce numéro de carte nationale est déjà utilisé');
+    }
+
+    String email = user['email'] ?? 'user_${carteId}@hospital.dz';
+
+    // Données par défaut pour le dossier médical
+    final medicalDefaults = {
+      'bloodType': user['bloodType'] ?? 'Non spécifié',
+      'height': user['height']?.toString() ?? '0',
+      'weight': user['weight']?.toString() ?? '0',
+      'allergies': user['allergies'] ?? 'Aucune',
+      'medications': user['medications'] ?? 'Aucun',
+      'chronicDiseases': user['chronicDiseases'] ?? 'Aucune',
+      'previousSurgeries': user['previousSurgeries'] ?? 'Aucune',
+      'familyHistory': user['familyHistory'] ?? 'Non spécifié',
+      'smoking': user['smoking'] ?? false,
+      'alcohol': user['alcohol'] ?? false,
+    };
+
+    user.addAll({
+      'createdAt': DateTime.now().toIso8601String(),
+      'medicalData': medicalDefaults,
+    });
+
+    if (user['fullName'] == null &&
+        user['firstName'] != null &&
+        user['lastName'] != null) {
+      user['fullName'] = '${user['firstName']} ${user['lastName']}';
+    }
+
+    await box.put(email, user);
+
+    // Créer aussi un dossier médical séparé
+    await saveMedicalRecord(carteId, {
+      ...medicalDefaults,
+      'patientName': user['fullName'],
+      'patientEmail': email,
+    });
+
+    debugPrint(
+        '✅ Utilisateur ajouté avec dossier médical: ${user['fullName']}');
+  }
+
+  // Récupérer un utilisateur avec ses données médicales
+  Future<Map<String, dynamic>> getUserWithMedicalData(String identifier) async {
+    final user = await authenticateUser(identifier, '');
+    if (user == null) return {};
+
+    final carteId = user['carte_id'];
+    final medicalRecord = await getMedicalRecord(carteId);
+
+    return {
+      ...user,
+      'medicalData': medicalRecord,
+    };
+  }
+
+  // Mettre à jour les données utilisateur ET médicales
+  Future<void> updateUserWithMedicalData(
+    String email,
+    Map<String, dynamic> userData,
+    Map<String, dynamic> medicalData,
+  ) async {
+    await updateUser(email, userData);
+
+    final user = await getUserByEmail(email);
+    if (user != null) {
+      await updateMedicalRecord(user['carte_id'], medicalData);
+    }
+  }
+
+  // ==================== MÉTHODES EXISTANTES AMÉLIORÉES ====================
+
   Future<bool> carteIdExists(int carteId) async {
     final box = await usersBox;
     final allUsers = box.values;
@@ -30,51 +190,30 @@ class DatabaseHelper {
     return false;
   }
 
-  // Vérifier si l'email existe déjà
   Future<bool> emailExists(String email) async {
     final box = await usersBox;
     return box.containsKey(email);
   }
 
-  // ==================== AJOUTER UTILISATEURS ====================
-
-  // Ajouter un utilisateur avec ID carte nationale (NUMBER)
   Future<void> addUser(String email, Map<String, dynamic> userData) async {
     final box = await usersBox;
-
-    // Vérifier si l'ID carte nationale existe déjà
     if (await carteIdExists(userData['carte_id'])) {
       throw Exception('Ce numéro de carte nationale est déjà utilisé');
     }
-
     await box.put(email, userData);
   }
 
-  // Insérer un utilisateur (patient ou médecin) - Version améliorée
   Future<void> insertUser(Map<String, dynamic> user) async {
     final box = await usersBox;
     final carteId = user['carte_id'];
 
-    // Vérifier si carte_id existe déjà
     if (await carteIdExists(carteId)) {
       throw Exception('Ce numéro de carte nationale est déjà utilisé');
     }
 
-    // Générer un email unique si pas fourni
     String email = user['email'] ?? 'user_${carteId}@hospital.dz';
-
-    // Ajouter timestamp de création
     user['createdAt'] = DateTime.now().toIso8601String();
 
-    // ✅ NOUVEAUX CHAMPS AJOUTÉS:
-    // - firstName (prénom)
-    // - lastName (nom)
-    // - gender (genre: Homme/Femme)
-    // - specialite (spécialité pour les docteurs)
-    // - deploymentFile (nom du fichier de déploiement)
-    // - deploymentFileData (données du fichier en base64/string)
-
-    // Si fullName n'existe pas mais firstName et lastName existent, le créer
     if (user['fullName'] == null &&
         user['firstName'] != null &&
         user['lastName'] != null) {
@@ -82,21 +221,14 @@ class DatabaseHelper {
     }
 
     await box.put(email, user);
-
     debugPrint('✅ Utilisateur ajouté: ${user['fullName']} (${user['role']})');
   }
 
-  // ==================== RÉCUPÉRATION ====================
-
-  // Authentification avec email OU carte_id (NUMBER)
   Future<Map<String, dynamic>?> authenticateUser(
       String identifier, String password) async {
     final box = await usersBox;
-
-    // Essayer d'abord avec email
     var userData = box.get(identifier);
 
-    // Si pas trouvé, chercher par carte_id (convertir en int si possible)
     if (userData == null) {
       int? carteIdSearch = int.tryParse(identifier);
       if (carteIdSearch != null) {
@@ -111,15 +243,12 @@ class DatabaseHelper {
       return null;
     }
 
-    // Vérifier le mot de passe
     if (userData['password'] == password) {
       return Map<String, dynamic>.from(userData);
     }
-
     return null;
   }
 
-  // Récupérer un utilisateur par carte_id (NUMBER)
   Future<Map<String, dynamic>?> getUserByCarteId(int carteId) async {
     final box = await usersBox;
     final allUsers = box.values;
@@ -132,7 +261,12 @@ class DatabaseHelper {
     return null;
   }
 
-  // Récupérer un patient par carte_id (alias pour compatibilité)
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    final box = await usersBox;
+    final user = box.get(email);
+    return user != null ? Map<String, dynamic>.from(user) : null;
+  }
+
   Future<Map<String, dynamic>?> getPatientByCarteId(int carteId) async {
     final user = await getUserByCarteId(carteId);
     if (user != null && user['role'] == 'patient') {
@@ -141,14 +275,12 @@ class DatabaseHelper {
     return null;
   }
 
-  // Récupérer tous les utilisateurs
   Future<List<Map<String, dynamic>>> getAllUsers() async {
     final box = await usersBox;
     final users = box.values.toList();
     return users.map((user) => Map<String, dynamic>.from(user)).toList();
   }
 
-  // Récupérer les utilisateurs par rôle
   Future<List<Map<String, dynamic>>> getUsersByRole(String role) async {
     final box = await usersBox;
     final allUsers = box.values;
@@ -162,12 +294,10 @@ class DatabaseHelper {
     return filteredUsers;
   }
 
-  // Récupérer tous les patients
   Future<List<Map<String, dynamic>>> getAllPatients() async {
     return await getUsersByRole('patient');
   }
 
-  // Récupérer tous les médecins (doctor OU medecin)
   Future<List<Map<String, dynamic>>> getAllDoctors() async {
     final box = await usersBox;
     final allUsers = box.values;
@@ -181,7 +311,6 @@ class DatabaseHelper {
     return doctors;
   }
 
-  // ✅ NOUVELLE FONCTION: Récupérer un docteur avec ses infos complètes
   Future<Map<String, dynamic>?> getDoctorByCarteId(int carteId) async {
     final user = await getUserByCarteId(carteId);
     if (user != null &&
@@ -191,16 +320,166 @@ class DatabaseHelper {
     return null;
   }
 
+  // ==================== MÉTHODES MANQUANTES ====================
+
+  Future<Map<String, dynamic>> getUserData() async {
+    try {
+      final box = await usersBox;
+      final currentUser = box.values.firstWhere(
+        (user) => user['role'] == 'patient',
+        orElse: () => {},
+      );
+
+      if (currentUser.isNotEmpty) {
+        final user = Map<String, dynamic>.from(currentUser);
+        final carteId = user['carte_id'];
+
+        // Récupérer les données médicales
+        final medicalRecord = await getMedicalRecord(carteId);
+
+        return {
+          ...user,
+          ...medicalRecord,
+          'age': user['age'] ?? calculateAge(user['dateOfBirth']),
+          'bloodType': medicalRecord['bloodType'] ?? 'Non spécifié',
+          'height': medicalRecord['height'] ?? '0',
+          'weight': medicalRecord['weight'] ?? '0',
+          'allergies': medicalRecord['allergies'] ?? 'Aucune',
+          'medications': medicalRecord['medications'] ?? 'Aucun',
+          'conditions': medicalRecord['chronicDiseases'] ?? 'Aucune',
+        };
+      }
+
+      return _getDefaultPatientData();
+    } catch (e) {
+      debugPrint('Erreur getUserData: $e');
+      return _getDefaultPatientData();
+    }
+  }
+
+  String calculateAge(String? dateOfBirth) {
+    if (dateOfBirth == null) return 'N/A';
+    try {
+      final birthDate = DateTime.parse(dateOfBirth);
+      final now = DateTime.now();
+      final age = now.year - birthDate.year;
+      if (now.month < birthDate.month ||
+          (now.month == birthDate.month && now.day < birthDate.day)) {
+        return (age - 1).toString();
+      }
+      return age.toString();
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  Map<String, dynamic> _getDefaultPatientData() {
+    return {
+      'fullName': 'Roudaina Chelloug',
+      'firstName': 'Roudaina',
+      'lastName': 'Chelloug',
+      'age': '26',
+      'bloodType': 'AB+',
+      'height': '1.68',
+      'weight': '75',
+      'allergies': 'Aucune',
+      'medications': 'Aucun',
+      'conditions': 'Aucune',
+      'gender': 'Femme',
+      'dateOfBirth': '1998-05-15',
+      'phone': '+213 123 456 789',
+      'address': 'Alger, Algérie',
+      'emergencyContact': '+213 987 654 321',
+      'carte_id': '123456789',
+      'email': 'patient@hospital.dz',
+    };
+  }
+
+  Future<Map<String, dynamic>> getDoctorData() async {
+    final box = await usersBox;
+    try {
+      final doctor = box.values.firstWhere(
+        (user) => user['role'] == 'doctor' || user['role'] == 'medecin',
+        orElse: () => {},
+      );
+      return Map<String, dynamic>.from(doctor ?? {});
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAppointments() async {
+    try {
+      final box = await appointmentsBox;
+      final allAppointments = box.values.toList();
+      return allAppointments
+          .map((appt) => Map<String, dynamic>.from(appt))
+          .toList();
+    } catch (e) {
+      debugPrint('Erreur getAppointments: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getPatients() async {
+    return await getAllPatients();
+  }
+
+  Future<void> saveAppointment(Map<String, dynamic> appointmentData) async {
+    final box = await appointmentsBox;
+    final appointmentId = DateTime.now().millisecondsSinceEpoch;
+    appointmentData['id'] = appointmentId;
+    appointmentData['createdAt'] = DateTime.now().toIso8601String();
+
+    await box.put(appointmentId, appointmentData);
+    debugPrint('✅ Rendez-vous sauvegardé: $appointmentData');
+  }
+
+  // ==================== GESTION DES RENDEZ-VOUS ====================
+
+  Future<List<Map<String, dynamic>>> getAppointmentsForUser(
+      String userEmail) async {
+    final box = await appointmentsBox;
+    final allAppointments = box.values.toList();
+
+    return allAppointments
+        .where((appt) =>
+            appt['patientEmail'] == userEmail ||
+            appt['doctorEmail'] == userEmail)
+        .map((appt) => Map<String, dynamic>.from(appt))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getDoctorAppointments(
+      int doctorCarteId) async {
+    final box = await appointmentsBox;
+    final allAppointments = box.values.toList();
+
+    return allAppointments
+        .where((appt) => appt['doctorCarteId'] == doctorCarteId)
+        .map((appt) => Map<String, dynamic>.from(appt))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getPatientAppointments(
+      int patientCarteId) async {
+    final box = await appointmentsBox;
+    final allAppointments = box.values.toList();
+
+    return allAppointments
+        .where((appt) => appt['patientCarteId'] == patientCarteId)
+        .map((appt) => Map<String, dynamic>.from(appt))
+        .toList();
+  }
+
   // ==================== MISE À JOUR ====================
 
-  // Mettre à jour un utilisateur
   Future<void> updateUser(String email, Map<String, dynamic> userData) async {
     final box = await usersBox;
     userData['updatedAt'] = DateTime.now().toIso8601String();
     await box.put(email, userData);
   }
 
-  // Mettre à jour un utilisateur par carte_id
   Future<void> updateUserByCarteId(
       int carteId, Map<String, dynamic> updatedData) async {
     final box = await usersBox;
@@ -212,7 +491,6 @@ class DatabaseHelper {
         userData.addAll(updatedData);
         userData['updatedAt'] = DateTime.now().toIso8601String();
 
-        // Si firstName ou lastName changent, mettre à jour fullName
         if (updatedData.containsKey('firstName') ||
             updatedData.containsKey('lastName')) {
           final firstName = userData['firstName'] ?? '';
@@ -228,13 +506,11 @@ class DatabaseHelper {
 
   // ==================== SUPPRESSION ====================
 
-  // Supprimer un utilisateur par email
   Future<void> deleteUser(String email) async {
     final box = await usersBox;
     await box.delete(email);
   }
 
-  // Supprimer un utilisateur par carte_id
   Future<void> deleteUserByCarteId(int carteId) async {
     final box = await usersBox;
     final allUsers = box.toMap();
@@ -250,7 +526,6 @@ class DatabaseHelper {
 
   // ==================== RECHERCHE ====================
 
-  // Rechercher des patients par nom ou prénom
   Future<List<Map<String, dynamic>>> searchPatients(String query) async {
     final allPatients = await getAllPatients();
     final searchQuery = query.toLowerCase();
@@ -270,7 +545,6 @@ class DatabaseHelper {
     }).toList();
   }
 
-  // Rechercher des médecins par nom ou spécialité
   Future<List<Map<String, dynamic>>> searchDoctors(String query) async {
     final allDoctors = await getAllDoctors();
     final searchQuery = query.toLowerCase();
@@ -294,7 +568,6 @@ class DatabaseHelper {
     }).toList();
   }
 
-  // ✅ NOUVELLE FONCTION: Rechercher par spécialité uniquement
   Future<List<Map<String, dynamic>>> getDoctorsBySpecialty(
       String specialty) async {
     final allDoctors = await getAllDoctors();
@@ -308,31 +581,26 @@ class DatabaseHelper {
 
   // ==================== STATISTIQUES ====================
 
-  // Obtenir le nombre total d'utilisateurs
   Future<int> getUserCount() async {
     final box = await usersBox;
     return box.length;
   }
 
-  // Obtenir le nombre d'utilisateurs par rôle
   Future<int> getUserCountByRole(String role) async {
     final users = await getUsersByRole(role);
     return users.length;
   }
 
-  // Obtenir le nombre total de patients
   Future<int> getTotalPatients() async {
     final patients = await getAllPatients();
     return patients.length;
   }
 
-  // Obtenir le nombre total de médecins
   Future<int> getTotalDoctors() async {
     final doctors = await getAllDoctors();
     return doctors.length;
   }
 
-  // ✅ NOUVELLE FONCTION: Statistiques par genre
   Future<Map<String, int>> getGenderStatistics(String role) async {
     final users = await getUsersByRole(role);
     int male = 0;
@@ -357,7 +625,6 @@ class DatabaseHelper {
     };
   }
 
-  // ✅ NOUVELLE FONCTION: Statistiques par spécialité
   Future<Map<String, int>> getSpecialtyStatistics() async {
     final doctors = await getAllDoctors();
     Map<String, int> specialtyCount = {};
@@ -374,24 +641,18 @@ class DatabaseHelper {
 
   // ==================== ADMIN ====================
 
-  /// Initialiser le compte administrateur unique
-  /// Cet admin gère tout : patients, médecins, et toutes les opérations
   Future<void> initializeSingleAdmin() async {
     final box = await usersBox;
-
-    // Identifiants de l'admin unique (STABLE - Ne jamais modifier)
     const String adminCarteId = '1234567890';
     const String adminEmail = 'admin@hospital.dz';
     const String adminPassword = 'admin123';
     const String adminName = 'Administrateur Principal';
 
-    // Vérifier si l'admin existe déjà
     if (box.containsKey(adminEmail)) {
       debugPrint('ℹ️  Le compte administrateur existe déjà');
       return;
     }
 
-    // Créer le compte admin unique
     await box.put(adminEmail, {
       'carte_id': int.parse(adminCarteId),
       'fullName': adminName,
@@ -417,27 +678,23 @@ class DatabaseHelper {
 
   // ==================== UTILITAIRES ====================
 
-  // Connexion (alias pour authenticateUser)
   Future<Map<String, dynamic>?> login(
       String identifier, String password) async {
     return await authenticateUser(identifier, password);
   }
 
-  // Vérifier si un utilisateur est admin
   Future<bool> isAdmin(String email) async {
     final box = await usersBox;
     final userData = box.get(email);
     return userData != null && userData['role'] == 'admin';
   }
 
-  // Effacer tous les utilisateurs (pour les tests uniquement)
   Future<void> clearAllUsers() async {
     final box = await usersBox;
     await box.clear();
     debugPrint('⚠️ Tous les utilisateurs ont été supprimés');
   }
 
-  // Réinitialiser la base de données (supprimer tout sauf admin)
   Future<void> resetDatabase() async {
     final box = await usersBox;
     await box.clear();
@@ -445,7 +702,6 @@ class DatabaseHelper {
     debugPrint('🔄 Base de données réinitialisée avec le compte admin');
   }
 
-  // Afficher tous les utilisateurs (debug)
   Future<void> debugPrintAllUsers() async {
     final users = await getAllUsers();
     debugPrint('\n📊 === LISTE DE TOUS LES UTILISATEURS ===');
@@ -460,19 +716,26 @@ class DatabaseHelper {
       if (user['role'] == 'doctor' || user['role'] == 'medecin') {
         debugPrint('Spécialité: ${user['specialite'] ?? 'Non spécifié'}');
         debugPrint('Genre: ${user['gender'] ?? 'Non spécifié'}');
-        if (user['deploymentFile'] != null) {
-          debugPrint('Fichier: ${user['deploymentFile']}');
-        }
+      }
+      if (user['medicalData'] != null) {
+        debugPrint('Données médicales disponibles: OUI');
       }
     }
     debugPrint('\n=====================================\n');
   }
 
-  // Fermer la box
   Future<void> closeBox() async {
     if (_usersBox != null && _usersBox!.isOpen) {
       await _usersBox!.close();
       _usersBox = null;
+    }
+    if (_appointmentsBox != null && _appointmentsBox!.isOpen) {
+      await _appointmentsBox!.close();
+      _appointmentsBox = null;
+    }
+    if (_medicalRecordsBox != null && _medicalRecordsBox!.isOpen) {
+      await _medicalRecordsBox!.close();
+      _medicalRecordsBox = null;
     }
   }
 }

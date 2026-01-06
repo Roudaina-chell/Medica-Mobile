@@ -14,7 +14,7 @@ class AddPatient extends StatefulWidget {
   State<AddPatient> createState() => _AddPatientState();
 }
 
-class _AddPatientState extends State<AddPatient> {
+class _AddPatientState extends State<AddPatient> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _carteIdController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
@@ -28,7 +28,43 @@ class _AddPatientState extends State<AddPatient> {
   String? _base64Image;
   final ImagePicker _picker = ImagePicker();
 
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   final List<String> _genders = ['Male', 'Female'];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _fadeController.forward();
+    _slideController.forward();
+  }
 
   @override
   void dispose() {
@@ -36,6 +72,8 @@ class _AddPatientState extends State<AddPatient> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dateController.dispose();
+    _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 
@@ -57,9 +95,43 @@ class _AddPatientState extends State<AddPatient> {
           _imageFile = imageFile;
           _base64Image = base64String;
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Photo ajoutée avec succès',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
       }
     } catch (e) {
-      _showErrorDialog('Erreur lors de la sélection de l\'image: $e');
+      _showErrorSnackBar('Erreur lors de la sélection de l\'image: $e');
     }
   }
 
@@ -69,93 +141,202 @@ class _AddPatientState extends State<AddPatient> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(25),
-            topRight: Radius.circular(25),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              Color(0xFFF8F9FA),
+            ],
           ),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, -5),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF2DB4F6),
+                    Color(0xFF1E88E5),
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Choisir une photo',
+              'Choose Photo',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
+                letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2DB4F6).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.camera_alt,
-                  color: Color(0xFF2DB4F6),
-                ),
-              ),
-              title: const Text('Appareil photo 📸'),
+            const SizedBox(height: 24),
+            _buildImageSourceOption(
+              icon: Icons.camera_alt_rounded,
+              label: 'Camera',
+              emoji: '📸',
+              color: const Color(0xFF2DB4F6),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
               },
             ),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2DB4F6).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.photo_library,
-                  color: Color(0xFF2DB4F6),
-                ),
-              ),
-              title: const Text('Galerie 🖼️'),
+            const SizedBox(height: 12),
+            _buildImageSourceOption(
+              icon: Icons.photo_library_rounded,
+              label: 'Gallery',
+              emoji: '🖼️',
+              color: const Color(0xFF7E57C2),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
               },
             ),
-            if (_imageFile != null)
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                  ),
-                ),
-                title: const Text('Supprimer la photo 🗑️'),
+            if (_imageFile != null) ...[
+              const SizedBox(height: 12),
+              _buildImageSourceOption(
+                icon: Icons.delete_rounded,
+                label: 'Remove Photo',
+                emoji: '🗑️',
+                color: const Color(0xFFFF6B6B),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() {
                     _imageFile = null;
                     _base64Image = null;
                   });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Photo supprimée',
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF4CAF50),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      margin: const EdgeInsets.all(16),
+                    ),
+                  );
                 },
               ),
-            const SizedBox(height: 20),
+            ],
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSourceOption({
+    required IconData icon,
+    required String label,
+    required String emoji,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color,
+                    color.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+            Text(
+              emoji,
+              style: const TextStyle(fontSize: 24),
+            ),
           ],
         ),
       ),
@@ -176,6 +357,7 @@ class _AddPatientState extends State<AddPatient> {
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
+            dialogBackgroundColor: Colors.white,
           ),
           child: child!,
         );
@@ -191,113 +373,135 @@ class _AddPatientState extends State<AddPatient> {
   }
 
   Future<void> _addPatient() async {
-    if (_formKey.currentState!.validate() &&
-        _selectedGender != null &&
-        _selectedDate != null) {
-      setState(() {
-        _isLoading = true;
-      });
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-      try {
-        final dbHelper = DatabaseHelper();
+    if (_selectedGender == null) {
+      _showErrorSnackBar('Veuillez sélectionner le genre');
+      return;
+    }
 
-        // Vérifier si la carte ID existe déjà
-        final existingPatient = await dbHelper
-            .getPatientByCarteId(int.parse(_carteIdController.text));
+    if (_selectedDate == null) {
+      _showErrorSnackBar('Veuillez sélectionner la date de naissance');
+      return;
+    }
 
-        if (existingPatient != null) {
-          _showErrorDialog('Cette carte ID existe déjà !');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dbHelper = DatabaseHelper();
+
+      final existingPatient = await dbHelper
+          .getPatientByCarteId(int.parse(_carteIdController.text));
+
+      if (existingPatient != null) {
+        if (mounted) {
+          _showErrorSnackBar('Cette carte ID existe déjà !');
         }
-
-        // Créer le nouveau patient avec photo
-        final newPatient = {
-          'carte_id': int.parse(_carteIdController.text),
-          'nom': _lastNameController.text.trim(),
-          'prenom': _firstNameController.text.trim(),
-          'date_naissance': DateFormat('yyyy-MM-dd').format(_selectedDate!),
-          'sexe': _selectedGender,
-          'role': 'patient',
-          'photo': _base64Image, // Ajouter la photo en base64
-        };
-
-        await dbHelper.insertUser(newPatient);
-
         setState(() {
           _isLoading = false;
         });
-
-        _showSuccessDialog();
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
-        _showErrorDialog('Erreur lors de l\'ajout du patient: $e');
+        return;
       }
-    } else {
-      _showErrorDialog('Veuillez remplir tous les champs');
+
+      final newPatient = {
+        'carte_id': int.parse(_carteIdController.text),
+        'nom': _lastNameController.text.trim(),
+        'prenom': _firstNameController.text.trim(),
+        'date_naissance': DateFormat('yyyy-MM-dd').format(_selectedDate!),
+        'sexe': _selectedGender,
+        'role': 'patient',
+        'photo': _base64Image,
+      };
+
+      await dbHelper.insertUser(newPatient);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Patient ajouté avec succès!',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+
+        await Future.delayed(const Duration(seconds: 1));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Erreur lors de l\'ajout du patient: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: const [
-            Icon(Icons.check_circle, color: Colors.green, size: 30),
-            SizedBox(width: 10),
-            Text('Succès'),
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.warning_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
           ],
         ),
-        content: const Text('Patient ajouté avec succès ! ✅'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFF2DB4F6)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFFF9800),
+        behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
         ),
-        title: Row(
-          children: const [
-            Icon(Icons.error_outline, color: Colors.red, size: 30),
-            SizedBox(width: 10),
-            Text('Erreur'),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFF2DB4F6)),
-            ),
-          ),
-        ],
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -306,276 +510,450 @@ class _AddPatientState extends State<AddPatient> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color.fromARGB(255, 90, 196, 245),
-              Color.fromARGB(255, 221, 230, 235),
-              Color.fromARGB(255, 214, 225, 230),
+              const Color(0xFF89CFF0),
+              const Color(0xFFB0E0E6),
+              const Color(0xFF89CFF0).withOpacity(0.8),
             ],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white,
+                                Color(0xFFF8F9FA),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Color(0xFF2DB4F6),
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    const Text(
-                      'Add patient:',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2DB4F6),
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _isLoading ? null : _addPatient,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _isLoading
-                              ? Colors.grey.withOpacity(0.5)
-                              : const Color(0xFF2DB4F6),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 24,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Color(0xFF2DB4F6),
+                            size: 20,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Formulaire
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-
-                        // Photo de profil avec possibilité de sélection
-                        GestureDetector(
-                          onTap: _showImageSourceDialog,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _imageFile == null
-                                      ? Colors.black87
-                                      : Colors.white,
-                                  boxShadow: [
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Add Patient',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Fill in the details below',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _isLoading ? null : _addPatient,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: _isLoading
+                                ? LinearGradient(
+                                    colors: [
+                                      Colors.grey.shade400,
+                                      Colors.grey.shade300,
+                                    ],
+                                  )
+                                : const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF4CAF50),
+                                      Color(0xFF45A049),
+                                    ],
+                                  ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: _isLoading
+                                ? null
+                                : [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
+                                      color: const Color(0xFF4CAF50)
+                                          .withOpacity(0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
-                                  image: _imageFile != null
-                                      ? DecorationImage(
-                                          image: FileImage(_imageFile!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: _imageFile == null
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Colors.white,
-                                      )
-                                    : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 20,
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
+                              SizedBox(width: 6),
+                              Text(
+                                'Save',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Formulaire
+                Expanded(
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white,
+                            Color(0xFFF8F9FA),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 25,
+                            offset: const Offset(0, 10),
+                            spreadRadius: 2,
+                          ),
+                          BoxShadow(
+                            color: const Color(0xFF2DB4F6).withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              // Photo de profil
+                              TweenAnimationBuilder<double>(
+                                duration: const Duration(milliseconds: 600),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                builder: (context, value, child) {
+                                  return Transform.scale(
+                                    scale: 0.8 + (value * 0.2),
+                                    child: Opacity(
+                                      opacity: value,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: GestureDetector(
+                                  onTap: _showImageSourceDialog,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 120,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: _imageFile == null
+                                              ? const LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [
+                                                    Color(0xFF2DB4F6),
+                                                    Color(0xFF1E88E5),
+                                                  ],
+                                                )
+                                              : null,
+                                          color: _imageFile != null
+                                              ? Colors.white
+                                              : null,
+                                          image: _imageFile != null
+                                              ? DecorationImage(
+                                                  image: FileImage(_imageFile!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF2DB4F6)
+                                                  .withOpacity(0.4),
+                                              blurRadius: 20,
+                                              offset: const Offset(0, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        child: _imageFile == null
+                                            ? const Icon(
+                                                Icons.person_rounded,
+                                                size: 60,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                Color(0xFF7E57C2),
+                                                Color(0xFF673AB7),
+                                              ],
+                                            ),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 3,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF7E57C2)
+                                                    .withOpacity(0.5),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              if (_imageFile != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(0xFF4CAF50)
+                                              .withOpacity(0.15),
+                                          const Color(0xFF4CAF50)
+                                              .withOpacity(0.08),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: const Color(0xFF4CAF50)
+                                            .withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.check_circle_rounded,
+                                          color: Color(0xFF4CAF50),
+                                          size: 14,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Photo added • Tap to change',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF4CAF50),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                              const SizedBox(height: 32),
+
+                              // Fields
+                              _buildTextField(
+                                controller: _carteIdController,
+                                hint: 'National Carte ID',
+                                icon: Icons.badge_rounded,
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  if (int.tryParse(value) == null) {
+                                    return 'Enter a valid number';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              _buildTextField(
+                                controller: _firstNameController,
+                                hint: 'First Name',
+                                icon: Icons.person_outline_rounded,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              _buildTextField(
+                                controller: _lastNameController,
+                                hint: 'Last Name',
+                                icon: Icons.person_outline_rounded,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Date de naissance
+                              GestureDetector(
+                                onTap: () => _selectDate(context),
+                                child: AbsorbPointer(
+                                  child: _buildTextField(
+                                    controller: _dateController,
+                                    hint: 'Date of Birth',
+                                    icon: Icons.calendar_today_rounded,
+                                    suffixIcon: IconButton(
+                                      icon: const Icon(
+                                        Icons.arrow_drop_down_rounded,
+                                        color: Color(0xFF2DB4F6),
+                                        size: 24,
+                                      ),
+                                      onPressed: null,
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Required';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Gender Dropdown
+                              _buildDropdown(
+                                hint: 'Gender',
+                                icon: Icons.wc_rounded,
+                                value: _selectedGender,
+                                items: _genders,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedGender = value;
+                                  });
+                                },
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              if (_isLoading)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
                                       colors: [
                                         Color(0xFF2DB4F6),
                                         Color(0xFF1E88E5),
                                       ],
                                     ),
                                     shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 3),
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFF2DB4F6)
-                                            .withOpacity(0.5),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
+                                            .withOpacity(0.3),
+                                        blurRadius: 15,
+                                        spreadRadius: 2,
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    size: 20,
+                                  child: const CircularProgressIndicator(
                                     color: Colors.white,
+                                    strokeWidth: 3,
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
-
-                        if (_imageFile != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              'Tap to change photo 📸',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black.withOpacity(0.6),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-
-                        const SizedBox(height: 40),
-
-                        // Carte ID
-                        _buildTextField(
-                          controller: _carteIdController,
-                          label: 'National carte Id',
-                          hint: 'Enter national carte ID',
-                          icon: Icons.badge_outlined,
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer la carte ID';
-                            }
-                            if (int.tryParse(value) == null) {
-                              return 'Entrez un numéro valide';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Prénom
-                        _buildTextField(
-                          controller: _firstNameController,
-                          label: 'First name',
-                          hint: 'Enter first name',
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer le prénom';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Nom
-                        _buildTextField(
-                          controller: _lastNameController,
-                          label: 'Last name',
-                          hint: 'Enter last name',
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Veuillez entrer le nom';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Date de naissance
-                        GestureDetector(
-                          onTap: () => _selectDate(context),
-                          child: AbsorbPointer(
-                            child: _buildTextField(
-                              controller: _dateController,
-                              label: 'Date of birth',
-                              hint: 'Select date',
-                              icon: Icons.calendar_today_outlined,
-                              suffixIcon: Icons.arrow_drop_down,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Veuillez sélectionner la date de naissance';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Genre
-                        _buildGenderDropdown(),
-
-                        const SizedBox(height: 40),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -584,159 +962,166 @@ class _AddPatientState extends State<AddPatient> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
     required String hint,
     required IconData icon,
-    IconData? suffixIcon,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: const TextStyle(
+        fontSize: 15,
+        color: Colors.black87,
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(
+          color: Colors.black45,
+          fontSize: 14,
+        ),
+        prefixIcon: Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF2DB4F6).withOpacity(0.15),
+                const Color(0xFF2DB4F6).withOpacity(0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.black87,
-            ),
-            decoration: InputDecoration(
-              labelText: label,
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 14,
-              ),
-              labelStyle: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
-              prefixIcon: Icon(icon, color: const Color(0xFF2DB4F6), size: 22),
-              suffixIcon: suffixIcon != null
-                  ? Icon(suffixIcon, color: Colors.grey.shade400)
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide:
-                    const BorderSide(color: Color(0xFF2DB4F6), width: 2),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Colors.red, width: 1),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Colors.red, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.95),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            ),
+          child: Icon(
+            icon,
+            color: const Color(0xFF2DB4F6),
+            size: 20,
           ),
         ),
-      ],
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1.5,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1.5,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: Color(0xFF2DB4F6),
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF6B6B),
+            width: 1.5,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF6B6B),
+            width: 2,
+          ),
+        ),
+        errorStyle: const TextStyle(
+          fontSize: 11,
+          height: 0.8,
+        ),
+      ),
     );
   }
 
-  Widget _buildGenderDropdown() {
+  Widget _buildDropdown({
+    required String hint,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 1.5,
+        ),
       ),
-      child: DropdownButtonFormField<String>(
-        value: _selectedGender,
-        decoration: InputDecoration(
-          labelText: 'Gender',
-          labelStyle: const TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2DB4F6).withOpacity(0.15),
+                  const Color(0xFF2DB4F6).withOpacity(0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF2DB4F6),
+              size: 20,
+            ),
           ),
-          prefixIcon: const Icon(
-            Icons.wc_outlined,
-            color: Color(0xFF2DB4F6),
-            size: 22,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0xFF2DB4F6), width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.red, width: 1),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.95),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        ),
-        hint: Text(
-          'Select gender',
-          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-        ),
-        icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade400),
-        dropdownColor: Colors.white,
-        items: _genders.map((String gender) {
-          return DropdownMenuItem<String>(
-            value: gender,
-            child: Text(
-              gender,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 15,
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                hint: Text(
+                  hint,
+                  style: const TextStyle(
+                    color: Colors.black45,
+                    fontSize: 14,
+                  ),
+                ),
+                value: value,
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF2DB4F6),
+                ),
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 15,
+                ),
+                items: items.map((String item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  );
+                }).toList(),
+                onChanged: onChanged,
               ),
             ),
-          );
-        }).toList(),
-        onChanged: (String? newValue) {
-          setState(() {
-            _selectedGender = newValue;
-          });
-        },
-        validator: (value) {
-          if (value == null) {
-            return 'Veuillez sélectionner le genre';
-          }
-          return null;
-        },
+          ),
+        ],
       ),
     );
   }

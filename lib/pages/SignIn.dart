@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'Profile.dart';
 import 'SignUp.dart';
 import 'database_helper.dart';
-import 'home_admin.dart'; // Import de la page admin
+import 'home_admin.dart';
+import 'home_doctor.dart'; // ✅ AJOUT: Import de la page docteur
 
 class SignIn extends StatefulWidget {
   const SignIn({Key? key}) : super(key: key);
@@ -22,7 +23,7 @@ class _SignInState extends State<SignIn> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   bool _isLoading = false;
 
-  // Fonction pour rediriger selon le rôle
+  // ✅ FONCTION MODIFIÉE: Redirection selon le rôle (avec doctor)
   void _navigateToHome(String role, Map<String, dynamic> userData) {
     Widget destination;
 
@@ -32,13 +33,21 @@ class _SignInState extends State<SignIn> {
         destination = HomeAdmin(userData: userData);
         break;
 
+      case 'doctor':
+      case 'medecin':
+        // ✅ NOUVEAU: Docteur - Va vers home_doctor.dart
+        destination = HomeDoctorPage(doctorData: userData);
+        break;
+
       case 'patient':
       default:
         // Patient - Va vers Profile.dart
         destination = Profile(
-          username: userData['fullName']?.toString() ?? 'Utilisateur',
-          email: userData['email']?.toString() ?? '',
-          role: role,
+          userData: {
+            'fullName': userData['fullName']?.toString() ?? 'Utilisateur',
+            'email': userData['email']?.toString() ?? '',
+            'role': role,
+          },
         );
         break;
     }
@@ -81,13 +90,20 @@ class _SignInState extends State<SignIn> {
 
         if (!mounted) return;
 
-        _showSnackBar('Connexion réussie ! Redirection...', isSuccess: true);
+        // ✅ Message personnalisé selon le rôle
+        String welcomeMessage = role == 'admin'
+            ? 'Bienvenue Administrateur !'
+            : role == 'doctor' || role == 'medecin'
+                ? 'Bienvenue Dr. $fullName !'
+                : 'Bienvenue $fullName !';
+
+        _showSnackBar(welcomeMessage, isSuccess: true);
 
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (!mounted) return;
 
-        // Redirection selon le rôle
+        // ✅ Redirection selon le rôle (inclut doctor maintenant)
         _navigateToHome(role, user);
       } else {
         _showSnackBar('Identifiant ou mot de passe incorrect');
