@@ -15,7 +15,8 @@ class BookAppointmentPage extends StatefulWidget {
   State<BookAppointmentPage> createState() => _BookAppointmentPageState();
 }
 
-class _BookAppointmentPageState extends State<BookAppointmentPage> {
+class _BookAppointmentPageState extends State<BookAppointmentPage>
+    with TickerProviderStateMixin {
   final TextEditingController _patientController = TextEditingController();
   final TextEditingController _carteIdController = TextEditingController();
   final DatabaseHelper _dbHelper = DatabaseHelper();
@@ -29,6 +30,11 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   bool isLoadingPatients = false;
   bool isSearching = false;
   String? searchError;
+
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   final List<String> months = [
     'Jan',
@@ -60,6 +66,32 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   void initState() {
     super.initState();
     _loadPatients();
+
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _fadeController.forward();
+    _slideController.forward();
   }
 
   Future<void> _loadPatients() async {
@@ -113,26 +145,22 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   Future<void> _saveAppointment() async {
     if (selectedPatient == null && _patientController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner un patient')),
-      );
+      _showNotification('Please select a patient', isError: true);
       return;
     }
 
     if (selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une heure')),
-      );
+      _showNotification('Please select a time', isError: true);
       return;
     }
 
     final appointmentData = {
       'patientCarteId': selectedPatient?['carte_id'] ?? 0,
       'patientName': selectedPatient?['fullName'] ??
-              selectedPatient?['firstName'] != null &&
+          selectedPatient?['firstName'] != null &&
                   selectedPatient?['lastName'] != null
-          ? '${selectedPatient!['firstName']} ${selectedPatient!['lastName']}'
-          : _patientController.text,
+              ? '${selectedPatient!['firstName']} ${selectedPatient!['lastName']}'
+              : _patientController.text,
       'patientEmail': selectedPatient?['email'] ?? '',
       'doctorCarteId': widget.doctorData?['carte_id'] ?? 0,
       'doctorName': widget.doctorData?['fullName'] ??
@@ -148,7 +176,6 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     try {
       await _dbHelper.saveAppointment(appointmentData);
 
-      // Naviguer vers la page de confirmation
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -161,10 +188,46 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      _showNotification('Error: $e', isError: true);
     }
+  }
+
+  void _showNotification(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isError ? Icons.error_rounded : Icons.check_circle_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor:
+            isError ? const Color(0xFFFF6B6B) : const Color(0xFF4CAF50),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   Future<void> _searchPatientByCarteId() async {
@@ -172,7 +235,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
     if (carteId.isEmpty) {
       setState(() {
-        searchError = 'Veuillez entrer un numéro de carte nationale';
+        searchError = 'Please enter a national ID';
       });
       return;
     }
@@ -180,7 +243,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     final carteIdInt = int.tryParse(carteId);
     if (carteIdInt == null) {
       setState(() {
-        searchError = 'Numéro de carte invalide';
+        searchError = 'Invalid national ID';
       });
       return;
     }
@@ -195,7 +258,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
       if (patient == null) {
         setState(() {
-          searchError = 'Aucun patient trouvé avec cette carte nationale';
+          searchError = 'No patient found with this national ID';
           isSearching = false;
         });
         return;
@@ -208,18 +271,17 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         isSearching = false;
       });
 
-      // Fermer le dialogue si le patient est trouvé
       Navigator.pop(context);
+      _showNotification('Patient found successfully!');
     } catch (e) {
       setState(() {
-        searchError = 'Erreur lors de la recherche: $e';
+        searchError = 'Search error: $e';
         isSearching = false;
       });
     }
   }
 
   void _showPatientSelectionDialog() {
-    // Réinitialiser la recherche
     _carteIdController.clear();
     searchError = null;
     isSearching = false;
@@ -227,102 +289,155 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Container(
-              padding: const EdgeInsets.all(20),
-              height: MediaQuery.of(context).size.height * 0.6,
+              padding: const EdgeInsets.all(24),
+              height: MediaQuery.of(context).size.height * 0.7,
               child: Column(
                 children: [
-                  const Text(
-                    'Rechercher un patient',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      'Entrez le numéro de carte nationale du patient pour le rechercher',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-
-                  // Formulaire de recherche
+                  // Handle bar
                   Container(
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: TextField(
-                      controller: _carteIdController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Ex: 1234567890',
-                        hintStyle:
-                            TextStyle(color: Colors.grey[500], fontSize: 16),
-                        prefixIcon:
-                            Icon(Icons.credit_card, color: Colors.blue[700]),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        labelText: 'Numéro de Carte Nationale',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                      ),
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 20),
 
-                  // Message d'erreur
-                  if (searchError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        searchError!,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 14,
+                  // Title
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.search,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Search Patient',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                  // Bouton de recherche
+                  // Search by National ID
                   Container(
-                    width: double.infinity,
-                    height: 50,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB1FF),
-                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(
+                        colors: [Colors.white, Color(0xFFF8F9FA)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1DB1FF).withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _searchPatientByCarteId,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Center(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Search by National ID',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2DB4F6),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _carteIdController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: 'Enter National ID...',
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            prefixIcon: const Icon(
+                              Icons.credit_card,
+                              color: Color(0xFF2DB4F6),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF2DB4F6),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                          ),
+                          onChanged: (value) {
+                            setModalState(() {
+                              searchError = null;
+                            });
+                          },
+                        ),
+                        if (searchError != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  color: Color(0xFFFF6B6B), size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  searchError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFFF6B6B),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: isSearching
+                              ? null
+                              : () async {
+                                  await _searchPatientByCarteId();
+                                  setModalState(() {});
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2DB4F6),
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
                           child: isSearching
                               ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
+                                  width: 20,
+                                  height: 20,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2,
@@ -331,83 +446,129 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                               : const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.search, color: Colors.white),
+                                    Icon(Icons.search, size: 20),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Rechercher le patient',
+                                      'Search',
                                       style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // Séparateur
+                  const SizedBox(height: 20),
+
+                  // Divider
                   Row(
                     children: [
-                      Expanded(
-                        child: Divider(
-                          color: Colors.grey[300],
-                          thickness: 1,
-                        ),
-                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'OU',
+                          'OR',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: Colors.grey.shade600,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: Divider(
-                          color: Colors.grey[300],
-                          thickness: 1,
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Patients List
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2DB4F6).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.people,
+                          color: Color(0xFF2DB4F6),
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Select from existing patients',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Liste des patients existants
-                  Text(
-                    'Sélectionner parmi les patients existants',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
                   ),
                   const SizedBox(height: 12),
 
                   Expanded(
                     child: isLoadingPatients
-                        ? const Center(child: CircularProgressIndicator())
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF2DB4F6),
+                                        Color(0xFF1E88E5)
+                                      ],
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Loading patients...',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
                         : patients.isEmpty
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.person_off,
-                                      size: 64,
-                                      color: Colors.grey[400],
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.person_off,
+                                        size: 48,
+                                        color: Colors.grey.shade400,
+                                      ),
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      'Aucun patient disponible',
+                                      'No patients available',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        color: Colors.grey[600],
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
@@ -424,45 +585,77 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                                       selectedPatient?['carte_id'] ==
                                           patient['carte_id'];
 
-                                  return Card(
-                                    elevation: isSelected ? 2 : 0,
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    color: isSelected
-                                        ? const Color(0xFF1DB1FF)
-                                            .withOpacity(0.1)
-                                        : Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isSelected
+                                            ? [
+                                                const Color(0xFF2DB4F6)
+                                                    .withOpacity(0.15),
+                                                const Color(0xFF1E88E5)
+                                                    .withOpacity(0.1),
+                                              ]
+                                            : [Colors.white, const Color(0xFFF8F9FA)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
                                         color: isSelected
-                                            ? const Color(0xFF1DB1FF)
-                                            : Colors.grey[200]!,
+                                            ? const Color(0xFF2DB4F6)
+                                            : Colors.grey.shade200,
                                         width: isSelected ? 2 : 1,
                                       ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFF2DB4F6)
+                                                    .withOpacity(0.2),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ]
+                                          : [],
                                     ),
                                     child: ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundColor: isSelected
-                                            ? const Color(0xFF1DB1FF)
-                                            : Colors.blue[100],
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 8),
+                                      leading: Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: isSelected
+                                                ? [
+                                                    const Color(0xFF2DB4F6),
+                                                    const Color(0xFF1E88E5)
+                                                  ]
+                                                : [
+                                                    const Color(0xFF2DB4F6)
+                                                        .withOpacity(0.2),
+                                                    const Color(0xFF1E88E5)
+                                                        .withOpacity(0.1),
+                                                  ],
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
                                         child: Icon(
                                           Icons.person,
                                           color: isSelected
                                               ? Colors.white
-                                              : Colors.blue[700],
+                                              : const Color(0xFF2DB4F6),
+                                          size: 24,
                                         ),
                                       ),
                                       title: Text(
                                         fullName.isNotEmpty
                                             ? fullName
-                                            : 'Sans nom',
+                                            : 'No name',
                                         style: TextStyle(
-                                          fontWeight: isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.w600,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
                                           color: isSelected
-                                              ? const Color(0xFF1DB1FF)
-                                              : Colors.black,
+                                              ? const Color(0xFF2DB4F6)
+                                              : Colors.black87,
                                         ),
                                       ),
                                       subtitle: Column(
@@ -471,28 +664,42 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                                         children: [
                                           const SizedBox(height: 4),
                                           Text(
-                                            'Carte: ${patient['carte_id'] ?? 'N/A'}',
-                                            style:
-                                                const TextStyle(fontSize: 12),
+                                            'ID: ${patient['carte_id'] ?? 'N/A'}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black54,
+                                            ),
                                           ),
                                           if (patient['email'] != null &&
                                               patient['email']
                                                   .toString()
                                                   .isNotEmpty)
                                             Text(
-                                              'Email: ${patient['email']}',
+                                              patient['email'],
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.grey[600],
+                                                color: Colors.grey.shade600,
                                               ),
                                             ),
                                         ],
                                       ),
                                       trailing: isSelected
-                                          ? const Icon(
-                                              Icons.check_circle,
-                                              color: Color(0xFF1DB1FF),
-                                              size: 28,
+                                          ? Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF2DB4F6),
+                                                    Color(0xFF1E88E5)
+                                                  ],
+                                                ),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
                                             )
                                           : null,
                                       onTap: () {
@@ -501,56 +708,13 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                                           _patientController.text = fullName;
                                         });
                                         Navigator.pop(context);
+                                        _showNotification(
+                                            'Patient selected: $fullName');
                                       },
                                     ),
                                   );
                                 },
                               ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedPatient = null;
-                              _patientController.text = '';
-                            });
-                            Navigator.pop(context);
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            'Effacer la sélection',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1DB1FF),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Fermer',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -570,37 +734,45 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color.fromARGB(255, 123, 207, 252),
-              const Color.fromARGB(255, 226, 236, 242),
+              const Color(0xFF89CFF0),
+              const Color(0xFFB0E0E6),
+              const Color(0xFF89CFF0).withOpacity(0.8),
             ],
-            stops: const [0.0, 0.5],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 24),
-                      _buildPatientSelector(),
-                      const SizedBox(height: 24),
-                      _buildDateSelector(),
-                      const SizedBox(height: 24),
-                      _buildTimeSelector(),
-                      const SizedBox(height: 32),
-                      _buildSaveButton(),
-                      const SizedBox(height: 20),
-                    ],
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                _buildAppBar(),
+                Expanded(
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          _buildPatientSelector(),
+                          const SizedBox(height: 24),
+                          _buildDateSelector(),
+                          const SizedBox(height: 24),
+                          _buildTimeSelector(),
+                          const SizedBox(height: 32),
+                          _buildSaveButton(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              _buildBottomNavBar(),
-            ],
+                _buildBottomNavBar(),
+              ],
+            ),
           ),
         ),
       ),
@@ -609,28 +781,54 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 24,
               ),
-              child: const Icon(Icons.arrow_back, color: Colors.black),
             ),
           ),
           const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2DB4F6).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.calendar_month_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
           const Text(
-            'Book an Appointment',
+            'Book Appointment',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.black87,
+              letterSpacing: 0.3,
             ),
           ),
         ],
@@ -642,89 +840,149 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Patient',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF2DB4F6).withOpacity(0.15),
+                    const Color(0xFF2DB4F6).withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.person_search_rounded,
+                color: Color(0xFF2DB4F6),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Select Patient',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: _showPatientSelectionDialog,
           child: Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: TextField(
-              controller: _patientController,
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: selectedPatient != null
-                    ? ''
-                    : 'Cliquez pour sélectionner un patient',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(16),
-                suffixIcon: const Icon(Icons.arrow_drop_down),
-                filled: true,
-                fillColor: Colors.white,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedPatient != null
+                        ? _patientController.text
+                        : 'Tap to search or select a patient',
+                    style: TextStyle(
+                      color: selectedPatient != null
+                          ? Colors.black87
+                          : Colors.grey.shade500,
+                      fontSize: 15,
+                      fontWeight: selectedPatient != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.search,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
         if (selectedPatient != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green[200]!),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF4CAF50).withOpacity(0.15),
+                  const Color(0xFF4CAF50).withOpacity(0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF4CAF50).withOpacity(0.3),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.green[700], size: 20),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4CAF50),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Patient sélectionné:',
+                      const Text(
+                        'Patient Selected',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.green[800],
-                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF4CAF50),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         selectedPatient!['fullName'] ??
                             '${selectedPatient!['firstName']} ${selectedPatient!['lastName']}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
-                          color: Colors.green[900],
+                          color: Colors.black87,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       if (selectedPatient!['carte_id'] != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Carte nationale: ${selectedPatient!['carte_id']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green[700],
-                            ),
+                        Text(
+                          'ID: ${selectedPatient!['carte_id']}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
                           ),
                         ),
                     ],
@@ -742,19 +1000,43 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Date',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF2DB4F6).withOpacity(0.15),
+                    const Color(0xFF2DB4F6).withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.calendar_today_rounded,
+                color: Color(0xFF2DB4F6),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Select Date',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              colors: [Colors.white, Color(0xFFF8F9FA)],
+            ),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
@@ -782,7 +1064,10 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       children: [
         IconButton(
           onPressed: _previousMonth,
-          icon: const Icon(Icons.chevron_left, size: 28),
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFF2DB4F6).withOpacity(0.1),
+          ),
+          icon: const Icon(Icons.chevron_left, color: Color(0xFF2DB4F6)),
         ),
         Row(
           children: [
@@ -796,7 +1081,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                 });
               },
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             _buildDropdown(
               value: selectedYear.toString(),
               items: List.generate(
@@ -812,7 +1097,10 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         ),
         IconButton(
           onPressed: _nextMonth,
-          icon: const Icon(Icons.chevron_right, size: 28),
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFF2DB4F6).withOpacity(0.1),
+          ),
+          icon: const Icon(Icons.chevron_right, color: Color(0xFF2DB4F6)),
         ),
       ],
     );
@@ -824,18 +1112,26 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     required Function(String?) onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF2DB4F6).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF2DB4F6).withOpacity(0.3),
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
+          style: const TextStyle(
+            color: Color(0xFF2DB4F6),
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
           items: items.map((String item) {
             return DropdownMenuItem<String>(
               value: item,
-              child: Text(item, style: const TextStyle(fontSize: 16)),
+              child: Text(item),
             );
           }).toList(),
           onChanged: onChanged,
@@ -861,10 +1157,10 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                   child: Center(
                     child: Text(
                       day,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                        fontSize: 14,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2DB4F6),
+                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -922,20 +1218,33 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1DB1FF) : Colors.transparent,
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+                )
+              : null,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF2DB4F6).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: Text(
             dayNumber?.toString() ?? '',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 15,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               color: isSelected
                   ? Colors.white
                   : isCurrentMonth
-                      ? Colors.black
-                      : Colors.grey[300],
+                      ? Colors.black87
+                      : Colors.grey.shade300,
             ),
           ),
         ),
@@ -947,13 +1256,35 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Hour',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF2DB4F6).withOpacity(0.15),
+                    const Color(0xFF2DB4F6).withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.access_time_rounded,
+                color: Color(0xFF2DB4F6),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Select Time',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -969,18 +1300,38 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
               },
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF1DB1FF) : Colors.white,
-                  border: Border.all(color: const Color(0xFF1DB1FF), width: 2),
-                  borderRadius: BorderRadius.circular(25),
+                  gradient: isSelected
+                      ? const LinearGradient(
+                          colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+                        )
+                      : const LinearGradient(
+                          colors: [Colors.white, Color(0xFFF8F9FA)],
+                        ),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF2DB4F6)
+                        : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF2DB4F6).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [],
                 ),
                 child: Text(
                   time,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF1DB1FF),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -996,11 +1347,13 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFF1DB1FF),
-        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1DB1FF).withOpacity(0.3),
+            color: const Color(0xFF2DB4F6).withOpacity(0.3),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -1010,15 +1363,23 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         color: Colors.transparent,
         child: InkWell(
           onTap: _saveAppointment,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
           child: const Center(
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 24),
+                SizedBox(width: 12),
+                Text(
+                  'Save Appointment',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1028,27 +1389,33 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   Widget _buildBottomNavBar() {
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            blurRadius: 25,
+            offset: const Offset(0, 8),
+            spreadRadius: 1,
+          ),
+          BoxShadow(
+            color: const Color(0xFF2DB4F6).withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.home_outlined, 0),
-          _buildNavItem(Icons.calendar_today_outlined, 1),
-          _buildNavItem(Icons.medical_services_outlined, 2),
-          _buildNavItem(Icons.calendar_month, 3, isSelected: true),
-          _buildNavItem(Icons.person_outline, 4),
+          _buildNavItem(Icons.home_rounded, 0),
+          _buildNavItem(Icons.calendar_today_rounded, 1),
+          _buildNavItem(Icons.medical_services_rounded, 2),
+          _buildNavItem(Icons.calendar_month_rounded, 3, isSelected: true),
+          _buildNavItem(Icons.person_rounded, 4),
         ],
       ),
     );
@@ -1057,16 +1424,40 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   Widget _buildNavItem(IconData icon, int index, {bool isSelected = false}) {
     return GestureDetector(
       onTap: () => _navigateToPage(index),
-      child: Container(
-        padding: const EdgeInsets.all(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 14,
+          vertical: 10,
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1DB1FF) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          gradient: isSelected
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF2DB4F6),
+                    Color(0xFF1E88E5),
+                  ],
+                )
+              : null,
+          color: isSelected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF2DB4F6).withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Icon(
           icon,
-          color: isSelected ? Colors.white : Colors.grey[600],
-          size: 26,
+          color: isSelected ? Colors.white : Colors.black54,
+          size: 24,
         ),
       ),
     );
@@ -1127,11 +1518,13 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   void dispose() {
     _patientController.dispose();
     _carteIdController.dispose();
+    _fadeController.dispose();
+    _slideController.dispose();
     super.dispose();
   }
 }
 
-// AppointmentNotificationPage
+// AppointmentNotificationPage stays the same - keeping it simple since it's a success page
 class AppointmentNotificationPage extends StatelessWidget {
   final String patientName;
   final DateTime date;
@@ -1155,10 +1548,11 @@ class AppointmentNotificationPage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color.fromARGB(255, 123, 207, 252),
-              const Color.fromARGB(255, 226, 236, 242),
+              const Color(0xFF89CFF0),
+              const Color(0xFFB0E0E6),
+              const Color(0xFF89CFF0).withOpacity(0.8),
             ],
-            stops: const [0.0, 0.5],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -1168,53 +1562,54 @@ class AppointmentNotificationPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Success Icon
                   Container(
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                      ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1DB1FF).withOpacity(0.3),
+                          color: const Color(0xFF4CAF50).withOpacity(0.4),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
                       ],
                     ),
                     child: const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF1DB1FF),
-                      size: 80,
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 70,
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Success Message
                   const Text(
                     'Appointment Booked!',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Colors.black87,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-
-                  const Text(
+                  Text(
                     'Your appointment has been successfully scheduled.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade700,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-
-                  // Appointment Details Card
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: const LinearGradient(
+                        colors: [Colors.white, Color(0xFFF8F9FA)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -1227,26 +1622,26 @@ class AppointmentNotificationPage extends StatelessWidget {
                     child: Column(
                       children: [
                         _buildDetailRow(
-                          Icons.person,
+                          Icons.person_rounded,
                           'Patient',
                           patientName.isEmpty ? 'Not specified' : patientName,
                         ),
                         const SizedBox(height: 20),
                         _buildDetailRow(
-                          Icons.calendar_today,
+                          Icons.calendar_today_rounded,
                           'Date',
                           '${date.day} ${_getMonthName(date.month)} ${date.year}',
                         ),
                         const SizedBox(height: 20),
                         _buildDetailRow(
-                          Icons.access_time,
+                          Icons.access_time_rounded,
                           'Time',
                           time.isEmpty ? 'Not selected' : time,
                         ),
                         if (doctorData != null) ...[
                           const SizedBox(height: 20),
                           _buildDetailRow(
-                            Icons.medical_services,
+                            Icons.medical_services_rounded,
                             'Doctor',
                             doctorData?['fullName'] ??
                                 '${doctorData?['firstName']} ${doctorData?['lastName']}',
@@ -1256,17 +1651,17 @@ class AppointmentNotificationPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Back to Home Button
                   Container(
                     width: double.infinity,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB1FF),
-                      borderRadius: BorderRadius.circular(28),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2DB4F6), Color(0xFF1E88E5)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1DB1FF).withOpacity(0.3),
+                          color: const Color(0xFF2DB4F6).withOpacity(0.3),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -1284,7 +1679,7 @@ class AppointmentNotificationPage extends StatelessWidget {
                             ),
                           );
                         },
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(16),
                         child: const Center(
                           child: Text(
                             'Back to Home',
@@ -1313,10 +1708,15 @@ class AppointmentNotificationPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1DB1FF).withOpacity(0.1),
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF2DB4F6).withOpacity(0.15),
+                const Color(0xFF2DB4F6).withOpacity(0.08),
+              ],
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF1DB1FF), size: 24),
+          child: Icon(icon, color: const Color(0xFF2DB4F6), size: 24),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1326,7 +1726,7 @@ class AppointmentNotificationPage extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: Colors.grey,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1336,7 +1736,7 @@ class AppointmentNotificationPage extends StatelessWidget {
                 value,
                 style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.black,
+                  color: Colors.black87,
                   fontWeight: FontWeight.bold,
                 ),
               ),

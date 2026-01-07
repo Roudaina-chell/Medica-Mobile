@@ -37,7 +37,7 @@ class DatabaseHelper {
   Future<void> saveMedicalRecord(
       int patientCarteId, Map<String, dynamic> medicalData) async {
     final box = await medicalRecordsBox;
-    final recordId = '$patientCarteId-${DateTime.now().millisecondsSinceEpoch}';
+    final recordId = 'med_${patientCarteId}_${DateTime.now().millisecondsSinceEpoch}';
 
     medicalData['recordId'] = recordId;
     medicalData['patientCarteId'] = patientCarteId;
@@ -425,10 +425,15 @@ class DatabaseHelper {
     return await getAllPatients();
   }
 
+  // ✅ FIXED: استخدام String key بدل int كبير
   Future<void> saveAppointment(Map<String, dynamic> appointmentData) async {
     final box = await appointmentsBox;
-    final appointmentId = DateTime.now().millisecondsSinceEpoch;
+    
+    // استخدام String key مع timestamp
+    final appointmentId = 'appt_${DateTime.now().millisecondsSinceEpoch}';
+    
     appointmentData['id'] = appointmentId;
+    appointmentData['timestamp'] = DateTime.now().millisecondsSinceEpoch;
     appointmentData['createdAt'] = DateTime.now().toIso8601String();
 
     await box.put(appointmentId, appointmentData);

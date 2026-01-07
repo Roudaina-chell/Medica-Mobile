@@ -1067,7 +1067,7 @@ class _DashboardAdminState extends State<DashboardAdmin>
 
                 const SizedBox(height: 16),
 
-                // Data Table
+                // Data Table - NOW WITH HORIZONTAL SCROLL
                 Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1096,84 +1096,87 @@ class _DashboardAdminState extends State<DashboardAdmin>
                     ),
                     child: Column(
                       children: [
-                        // Table Header
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2DB4F6).withOpacity(0.1),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(24),
-                              topRight: Radius.circular(24),
+                        // Table Header - SCROLLABLE
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 1.8,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2DB4F6).withOpacity(0.1),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(24),
+                                topRight: Radius.circular(24),
+                              ),
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 1,
+                                ),
+                              ),
                             ),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey.shade300,
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  _selectedTab == 0
-                                      ? 'National ID'
-                                      : 'National ID',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E88E5),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  'Full Name',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E88E5),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  'Gender',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E88E5),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              if (_selectedTab == 1)
-                                Expanded(
-                                  flex: 2,
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 130,
                                   child: Text(
-                                    'Speciality',
+                                    'National ID',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF1E88E5),
-                                      fontSize: 14,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  'Actions',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E88E5),
-                                    fontSize: 14,
+                                SizedBox(
+                                  width: 160,
+                                  child: Text(
+                                    'Full Name',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E88E5),
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                SizedBox(
+                                  width: 120,
+                                  child: Text(
+                                    'Gender',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E88E5),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                if (_selectedTab == 1)
+                                  SizedBox(
+                                    width: 160,
+                                    child: Text(
+                                      'Speciality',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E88E5),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                SizedBox(
+                                  width: 140,
+                                  child: Text(
+                                    'Actions',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E88E5),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
 
@@ -1426,145 +1429,152 @@ class _DashboardAdminState extends State<DashboardAdmin>
 
     final specialite = item['specialite']?.toString() ?? 'N/A';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      color:
-          index % 2 == 0 ? Colors.white : Colors.grey.shade50.withOpacity(0.5),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              carteId,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              fullName.isNotEmpty ? fullName : 'Sans nom',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: (gender.toLowerCase() == 'homme' ||
-                        gender.toLowerCase() == 'male')
-                    ? const Color(0xFF2DB4F6).withOpacity(0.1)
-                    : const Color(0xFFFF6B6B).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: (gender.toLowerCase() == 'homme' ||
-                          gender.toLowerCase() == 'male')
-                      ? const Color(0xFF2DB4F6).withOpacity(0.3)
-                      : const Color(0xFFFF6B6B).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  gender,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: (gender.toLowerCase() == 'homme' ||
-                            gender.toLowerCase() == 'male')
-                        ? const Color(0xFF2DB4F6)
-                        : const Color(0xFFFF6B6B),
-                  ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 1.8,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        color: index % 2 == 0
+            ? Colors.white
+            : Colors.grey.shade50.withOpacity(0.5),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 130,
+              child: Text(
+                carteId,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-          ),
-          if (isDoctor)
-            Expanded(
-              flex: 2,
+            SizedBox(
+              width: 160,
+              child: Text(
+                fullName.isNotEmpty ? fullName : 'Sans nom',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 120,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF43A047).withOpacity(0.1),
+                  color: (gender.toLowerCase() == 'homme' ||
+                          gender.toLowerCase() == 'male')
+                      ? const Color(0xFF2DB4F6).withOpacity(0.1)
+                      : const Color(0xFFFF6B6B).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF43A047).withOpacity(0.3),
+                    color: (gender.toLowerCase() == 'homme' ||
+                            gender.toLowerCase() == 'male')
+                        ? const Color(0xFF2DB4F6).withOpacity(0.3)
+                        : const Color(0xFFFF6B6B).withOpacity(0.3),
                     width: 1,
                   ),
                 ),
                 child: Center(
                   child: Text(
-                    specialite,
-                    style: const TextStyle(
-                      fontSize: 13,
+                    gender,
+                    style: TextStyle(
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF43A047),
+                      color: (gender.toLowerCase() == 'homme' ||
+                              gender.toLowerCase() == 'male')
+                          ? const Color(0xFF2DB4F6)
+                          : const Color(0xFFFF6B6B),
                     ),
                   ),
                 ),
               ),
             ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                // Edit button
-                GestureDetector(
-                  onTap: () => _showEditDialog(item, isDoctor),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF2DB4F6).withOpacity(0.15),
-                          const Color(0xFF2DB4F6).withOpacity(0.08),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
+            if (isDoctor)
+              SizedBox(
+                width: 160,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF43A047).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF43A047).withOpacity(0.3),
+                      width: 1,
                     ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      size: 18,
-                      color: Color(0xFF2DB4F6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      specialite,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF43A047),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+              ),
+            SizedBox(
+              width: 140,
+              child: Row(
+                children: [
+                  // Edit button
+                  GestureDetector(
+                    onTap: () => _showEditDialog(item, isDoctor),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF2DB4F6).withOpacity(0.15),
+                            const Color(0xFF2DB4F6).withOpacity(0.08),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        size: 18,
+                        color: Color(0xFF2DB4F6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
 
-                // Delete button
-                GestureDetector(
-                  onTap: () =>
-                      _deleteItem(item['carte_id'], fullName, isDoctor),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFFF6B6B).withOpacity(0.15),
-                          const Color(0xFFFF6B6B).withOpacity(0.08),
-                        ],
+                  // Delete button
+                  GestureDetector(
+                    onTap: () =>
+                        _deleteItem(item['carte_id'], fullName, isDoctor),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFFF6B6B).withOpacity(0.15),
+                            const Color(0xFFFF6B6B).withOpacity(0.08),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.delete_rounded,
-                      size: 18,
-                      color: Color(0xFFFF6B6B),
+                      child: const Icon(
+                        Icons.delete_rounded,
+                        size: 18,
+                        color: Color(0xFFFF6B6B),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
